@@ -4,11 +4,16 @@ import { ServiceCard } from "@/components/ui/ServiceCard";
 import { Accordion } from "@/components/ui/Accordion";
 import { Section } from "@/components/site/Section";
 import { CATALOG, durationLabel } from "@/lib/catalog";
+import { resolveSiteImage } from "@/lib/site-images";
+import { getSiteImageMap } from "@/lib/site-images-server";
 
 export const metadata: Metadata = {
   title: "시술 안내",
   description: "멜로우브로우의 시술 메뉴와 가격 안내. 모든 시술은 1:1 맞춤 상담 후 진행됩니다.",
 };
+
+// 데스크에서 교체한 사이트 이미지를 매 요청 반영
+export const dynamic = "force-dynamic";
 
 const FAQ = [
   {
@@ -33,7 +38,8 @@ const FAQ = [
   },
 ];
 
-export default function ServicesPage() {
+export default async function ServicesPage() {
+  const siteImages = await getSiteImageMap();
   return (
     <div>
       <Section>
@@ -62,7 +68,7 @@ export default function ServicesPage() {
               description={s.desc}
               price={s.price}
               duration={s.priceNote ?? durationLabel(s.durationHours)}
-              image={s.image}
+              image={resolveSiteImage(siteImages, `service:${s.name}`)}
               href={`/booking?service=${encodeURIComponent(s.name)}`}
             />
           ))}

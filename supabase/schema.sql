@@ -52,7 +52,15 @@ create table if not exists gallery_items (
   storage_path text                     -- Storage 객체 경로 (삭제용)
 );
 
--- 갤러리 이미지 저장용 공개 버킷
+-- 사이트 고정 이미지 (홈 히어로/스튜디오, 시술 카드 — 데스크에서 교체)
+create table if not exists site_images (
+  key text primary key,                 -- 'hero' | 'studio' | 'service:자연눈썹' ...
+  image_url text not null,
+  storage_path text,
+  updated_at timestamptz not null default now()
+);
+
+-- 갤러리/사이트 이미지 저장용 공개 버킷
 insert into storage.buckets (id, name, public)
 values ('gallery', 'gallery', true)
 on conflict (id) do nothing;
@@ -61,3 +69,4 @@ on conflict (id) do nothing;
 alter table reservations enable row level security;
 alter table blocked_slots enable row level security;
 alter table gallery_items enable row level security;
+alter table site_images enable row level security;

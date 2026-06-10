@@ -5,10 +5,16 @@ import { ServiceCard } from "@/components/ui/ServiceCard";
 import { Section } from "@/components/site/Section";
 import { Photo } from "@/components/site/Photo";
 import { CATALOG, durationLabel } from "@/lib/catalog";
+import { resolveSiteImage } from "@/lib/site-images";
+import { getSiteImageMap } from "@/lib/site-images-server";
 
 const SIGNATURE = ["자연눈썹", "콤보눈썹", "수지눈썹"];
 
-export default function HomePage() {
+// 데스크에서 교체한 사이트 이미지를 매 요청 반영
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const siteImages = await getSiteImageMap();
   return (
     <div>
       {/* HERO */}
@@ -76,7 +82,7 @@ export default function HomePage() {
               ratio="4 / 5"
               variant="b"
               radius="var(--radius-xl)"
-              src="/photos/hero.jpg"
+              src={resolveSiteImage(siteImages, "hero")}
               alt="자연스러운 눈썹 클로즈업"
               style={{ boxShadow: "var(--shadow-lg)" }}
             />
@@ -114,7 +120,7 @@ export default function HomePage() {
             ratio="5 / 4"
             variant="c"
             radius="var(--radius-xl)"
-            src="/photos/studio.jpg"
+            src={resolveSiteImage(siteImages, "studio")}
             alt="멜로우브로우 스튜디오"
           />
           <div>
@@ -199,7 +205,7 @@ export default function HomePage() {
               description={s.desc}
               price={s.price}
               duration={s.priceNote ?? durationLabel(s.durationHours)}
-              image={s.image}
+              image={resolveSiteImage(siteImages, `service:${s.name}`)}
               href={`/booking?service=${encodeURIComponent(s.name)}`}
             />
           ))}

@@ -43,6 +43,12 @@ npm run dev
 - 업로드한 사진이 하나도 없으면 갤러리는 기본(더미) 이미지로 폴백
 - 사진 파일은 Supabase Storage `gallery` 버킷에 저장 (schema.sql이 버킷까지 생성)
 
+## 사이트 이미지 관리
+
+- 데스크 맨 아래 "사이트 이미지"에서 **홈 히어로 / 스튜디오 사진 / 시술 카드 9장**을 교체할 수 있어요
+- "변경"으로 새 사진 업로드, "기본값"으로 언제든 원래 이미지로 복원
+- 슬롯 정의는 [lib/site-images.ts](lib/site-images.ts) (`SITE_IMAGE_SLOTS`), 저장은 `site_images` 테이블 + Storage `gallery` 버킷
+
 ## Supabase 설정 (1회)
 
 1. [supabase.com](https://supabase.com)에서 새 프로젝트 생성

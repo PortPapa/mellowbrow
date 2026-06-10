@@ -76,6 +76,10 @@ export interface Database {
   listGallery(): Promise<GalleryItem[]>;
   addGalleryImage(input: AddGalleryInput): Promise<GalleryItem>;
   deleteGalleryImage(id: string): Promise<boolean>;
+  /** 사이트 고정 이미지 (홈/시술 카드) — key → 커스텀 URL */
+  getSiteImages(): Promise<Record<string, string>>;
+  setSiteImage(key: string, input: Omit<AddGalleryInput, "category">): Promise<string>;
+  deleteSiteImage(key: string): Promise<boolean>;
 }
 
 /** 두 점유 구간 [aStart, aStart+aDur) / [bStart, bStart+bDur) 겹침 여부 */
@@ -268,6 +272,58 @@ class SupabaseDb implements Database {
     }
     return true;
   }
+
+  async getSiteImages(): Promise<Record<string, string>> {
+    const { data, error } = await this.client.from("site_images").select("key, image_url");
+    if (error) throw new Error(`getSiteImages: ${error.message}`);
+    const map: Record<string, string> = {};
+    for (const r of data ?? []) map[String(r.key)] = String(r.image_url);
+    return map;
+  }
+
+  async setSiteImage(key: string, input: Omit<AddGalleryInput, "category">): Promise<string> {
+    // 기존 커스텀 이미지의 스토리지 경로 (교체 후 삭제)
+    const { data: prev } = await this.client
+      .from("site_images")
+      .select("storage_path")
+      .eq("key", key)
+      .maybeSingle();
+
+    const ext = (input.fileName.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = `site/${key.replace(/[^a-zA-Z0-9가-힣]/g, "_")}-${crypto.randomUUID()}.${ext || "jpg"}`;
+    const { error: upErr } = await this.client.storage
+      .from("gallery")
+      .upload(path, input.data, { contentType: input.contentType });
+    if (upErr) throw new Error(`setSiteImage(storage): ${upErr.message}`);
+
+    const { data: pub } = this.client.storage.from("gallery").getPublicUrl(path);
+    const { error } = await this.client
+      .from("site_images")
+      .upsert({ key, image_url: pub.publicUrl, storage_path: path }, { onConflict: "key" });
+    if (error) {
+      await this.client.storage.from("gallery").remove([path]);
+      throw new Error(`setSiteImage: ${error.message}`);
+    }
+    if (prev?.storage_path) {
+      await this.client.storage.from("gallery").remove([String(prev.storage_path)]);
+    }
+    return pub.publicUrl;
+  }
+
+  async deleteSiteImage(key: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .from("site_images")
+      .delete()
+      .eq("key", key)
+      .select()
+      .maybeSingle();
+    if (error) throw new Error(`deleteSiteImage: ${error.message}`);
+    if (!data) return false;
+    if (data.storage_path) {
+      await this.client.storage.from("gallery").remove([String(data.storage_path)]);
+    }
+    return true;
+  }
 }
 
 function normalizeGalleryRow(row: Record<string, unknown>): GalleryItem {
@@ -302,14 +358,28 @@ interface MemoryStore {
   reservations: Reservation[];
   blocks: { date: string; time_slot: string }[];
   gallery: GalleryItem[];
+  siteImages: Record<string, string>;
   seq: number;
 }
 
 function memStore(): MemoryStore {
   const g = globalThis as unknown as { __mb_mem?: MemoryStore };
-  if (!g.__mb_mem) g.__mb_mem = { reservations: [], blocks: [], gallery: [], seq: 1 };
+  if (!g.__mb_mem) {
+    g.__mb_mem = { reservations: [], blocks: [], gallery: [], siteImages: {}, seq: 1 };
+  }
   if (!g.__mb_mem.gallery) g.__mb_mem.gallery = [];
+  if (!g.__mb_mem.siteImages) g.__mb_mem.siteImages = {};
   return g.__mb_mem;
+}
+
+function toDataUrl(contentType: string, data: ArrayBuffer): string {
+  const bytes = new Uint8Array(data);
+  let bin = "";
+  const CHUNK = 8192;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return `data:${contentType};base64,${btoa(bin)}`;
 }
 
 class MemoryDb implements Database {
@@ -401,17 +471,11 @@ class MemoryDb implements Database {
 
   async addGalleryImage(input: AddGalleryInput): Promise<GalleryItem> {
     // 메모리 모드: data URL로 저장 (로컬 데모 전용)
-    const bytes = new Uint8Array(input.data);
-    let bin = "";
-    const CHUNK = 8192;
-    for (let i = 0; i < bytes.length; i += CHUNK) {
-      bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-    }
     const item: GalleryItem = {
       id: `mem-g${memStore().seq++}`,
       created_at: new Date().toISOString(),
       category: input.category,
-      image_url: `data:${input.contentType};base64,${btoa(bin)}`,
+      image_url: toDataUrl(input.contentType, input.data),
       storage_path: null,
     };
     memStore().gallery.push(item);
@@ -423,6 +487,23 @@ class MemoryDb implements Database {
     const before = store.gallery.length;
     store.gallery = store.gallery.filter((g) => g.id !== id);
     return store.gallery.length < before;
+  }
+
+  async getSiteImages(): Promise<Record<string, string>> {
+    return { ...memStore().siteImages };
+  }
+
+  async setSiteImage(key: string, input: Omit<AddGalleryInput, "category">): Promise<string> {
+    const url = toDataUrl(input.contentType, input.data);
+    memStore().siteImages[key] = url;
+    return url;
+  }
+
+  async deleteSiteImage(key: string): Promise<boolean> {
+    const store = memStore();
+    if (!(key in store.siteImages)) return false;
+    delete store.siteImages[key];
+    return true;
   }
 }
 
