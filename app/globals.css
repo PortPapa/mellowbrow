@@ -483,11 +483,11 @@ button { font-family: inherit; }
 
 /* ---------- Slot chips (booking) ---------- */
 .slot-chip {
-  padding: 9px 16px;
+  padding: 12px 18px;
   border-radius: var(--radius-pill);
   cursor: pointer;
   font-family: var(--font-sans);
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 500;
   border: 1px solid var(--border-strong);
   background: transparent;
@@ -504,15 +504,15 @@ button { font-family: inherit; }
   text-decoration: line-through;
 }
 
-/* ---------- Booking calendar ---------- */
+/* ---------- Booking calendar (예약 페이지의 중심 요소 — 크게) ---------- */
 .cal {
   background: var(--surface-card);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  border-radius: var(--radius-lg);
+  padding: 24px;
 }
-.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.cal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.cal-title { font-size: 17px; font-weight: 600; color: var(--text-primary); }
 .cal-nav {
   display: inline-flex;
   align-items: center;
@@ -532,30 +532,30 @@ button { font-family: inherit; }
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   text-align: center;
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .cal-week .is-sun { color: var(--blush-700); }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .cal-cell {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 46px;
-  border-radius: var(--radius-sm);
+  gap: 5px;
+  min-height: 62px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
   font-family: var(--font-sans);
-  padding: 4px 0;
+  padding: 6px 0;
   transition: all var(--dur-fast) var(--ease-out);
 }
-.cal-day { font-size: 13.5px; font-weight: 500; color: var(--text-primary); line-height: 1; }
+.cal-day { font-size: 15px; font-weight: 500; color: var(--text-primary); line-height: 1; }
 .cal-cell:hover:not(:disabled):not(.is-selected) { background: var(--mocha-50); }
 .cal-cell.is-today { border-color: var(--border-strong); }
 .cal-cell.is-selected { background: var(--primary); }
@@ -602,6 +602,73 @@ button { font-family: inherit; }
 }
 .filter-pill.is-active { border-color: transparent; background: var(--primary); color: var(--on-primary); }
 .filter-pill:hover:not(.is-active) { background: var(--mocha-50); }
+
+/* ---------- Modal ---------- */
+@keyframes mb-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes mb-slide-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: color-mix(in oklab, var(--mocha-900) 45%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: mb-fade-in var(--dur) var(--ease-out);
+}
+.modal-card {
+  position: relative;
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 32px 28px 28px;
+  animation: mb-slide-up var(--dur) var(--ease-out);
+}
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--surface-fill);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.modal-close:hover { background: var(--mocha-200); }
+
+/* ---------- Booking page layout ---------- */
+.booking-col {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.booking-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+}
+@media (max-width: 600px) {
+  .booking-info-grid { grid-template-columns: 1fr; }
+}
 
 /* ============================================================
    Site layout

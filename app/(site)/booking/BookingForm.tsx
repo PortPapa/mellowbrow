@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { SERVICES, slotLabel } from "@/lib/slots";
+import { Modal } from "@/components/ui/Modal";
+import { CATALOG, durationLabel, getService } from "@/lib/catalog";
+import { SLOT_HOURS, slotHour, slotLabel } from "@/lib/slots";
 import { Calendar } from "./Calendar";
 
 interface SlotInfo {
@@ -30,12 +31,19 @@ const INFO: [typeof Clock, string, string][] = [
   [Instagram, "문의", "@mellowbrow DM\n카카오톡 ID mellow415"],
 ];
 
+/** '2026-06-12' → '6월 12일 (금)' */
+function formatDateKo(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const weekday = ["일", "월", "화", "수", "목", "금", "토"][new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${m}월 ${d}일 (${weekday})`;
+}
+
 export function BookingForm({ initialService }: { initialService: string }) {
-  const [service, setService] = useState(
-    (SERVICES as readonly string[]).includes(initialService) ? initialService : "",
-  );
   const [date, setDate] = useState("");
   const [slot, setSlot] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const [service, setService] = useState(getService(initialService) ? initialService : "");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [memo, setMemo] = useState("");
@@ -71,8 +79,34 @@ export function BookingForm({ initialService }: { initialService: string }) {
     }
   }, [date, loadAvailability]);
 
+  /** 시작 시간 start부터 시술(소요 D시간)이 들어갈 수 있는지 — 영업시간 내 시간만 검사 */
+  function fits(startSlot: string, hours: number): boolean {
+    if (!slots) return false;
+    const start = slotHour(startSlot);
+    const lastHour = SLOT_HOURS[SLOT_HOURS.length - 1];
+    for (let h = start; h < start + hours; h++) {
+      if (h > lastHour) break; // 마감 이후 시간은 제약 없음 (20시 예약 → 22시까지 시술)
+      const s = slots.find((x) => slotHour(x.value) === h);
+      if (!s || !s.available) return false;
+    }
+    return true;
+  }
+
+  function openModal(slotValue: string) {
+    setSlot(slotValue);
+    setError("");
+    setModalOpen(true);
+  }
+
+  function refresh() {
+    setCalToken((t) => t + 1);
+    if (date) void loadAvailability(date);
+  }
+
+  const selectedService = getService(service);
+  const serviceFits = !!selectedService && fits(slot, selectedService.durationHours);
   const canSubmit =
-    !!service && !!date && !!slot && name.trim().length > 0 && phone.trim().length >= 9 && agree;
+    !!service && !!date && !!slot && serviceFits && name.trim().length > 0 && phone.trim().length >= 9 && agree;
 
   async function submit() {
     if (!canSubmit || submitting) return;
@@ -93,14 +127,13 @@ export function BookingForm({ initialService }: { initialService: string }) {
       });
       if (res.status === 201) {
         setDone({ date, time_slot: slot, service, name: name.trim() });
+        refresh();
         return;
       }
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (res.status === 409) {
         setError(body.error ?? "방금 마감된 시간이에요. 다른 시간을 선택해 주세요.");
-        setSlot("");
-        setCalToken((t) => t + 1);
-        void loadAvailability(date);
+        refresh();
       } else {
         setError(body.error ?? "신청 처리 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.");
       }
@@ -111,66 +144,21 @@ export function BookingForm({ initialService }: { initialService: string }) {
     }
   }
 
-  if (done) {
-    return (
-      <Card
-        elevation="md"
-        style={{ maxWidth: 520, margin: "40px auto", textAlign: "center", padding: "48px 40px" }}
-      >
-        <span
-          style={{
-            display: "inline-flex",
-            width: 56,
-            height: 56,
-            borderRadius: "999px",
-            background: "var(--success-soft)",
-            color: "var(--success)",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 18,
-          }}
-        >
-          <Check size={28} strokeWidth={2} />
-        </span>
-        <h2 style={{ fontSize: 30 }}>예약 신청 완료</h2>
-        <p
-          style={{
-            marginTop: 14,
-            fontSize: 15,
-            lineHeight: 1.7,
-            color: "var(--text-secondary)",
-          }}
-        >
-          {done.name}님, 신청해 주셔서 감사합니다.
-          <br />
-          <b style={{ color: "var(--text-primary)" }}>
-            {done.date} {slotLabel(done.time_slot)} · {done.service}
-          </b>
-          <br />
-          확인 후 남겨주신 연락처로 예약 확정을 안내드릴게요.
-        </p>
-        <div style={{ marginTop: 28, display: "flex", gap: 12, justifyContent: "center" }}>
-          <Button variant="secondary" href="/">
-            홈으로
-          </Button>
-          <Button
-            onClick={() => {
-              setDone(null);
-              setSlot("");
-              setCalToken((t) => t + 1);
-              if (date) void loadAvailability(date);
-            }}
-          >
-            다시 신청
-          </Button>
-        </div>
-      </Card>
-    );
+  function closeModal() {
+    setModalOpen(false);
+    if (done) {
+      setDone(null);
+      setSlot("");
+      setName("");
+      setPhone("");
+      setMemo("");
+      setAgree(false);
+    }
   }
 
   return (
     <>
-      <div style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 44px" }}>
+      <div style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 40px" }}>
         <span className="mb-eyebrow">Booking</span>
         <h1 style={{ fontSize: "var(--fs-display-md)", marginTop: 16 }}>예약 신청</h1>
         <p style={{ marginTop: 14, fontSize: 16, color: "var(--text-secondary)" }}>
@@ -178,15 +166,193 @@ export function BookingForm({ initialService }: { initialService: string }) {
         </p>
       </div>
 
-      <div className="booking-grid">
-        <Card elevation="sm" style={{ padding: "32px 32px 36px" }}>
-          <div className="form-grid">
-            <Input
-              label="성함"
-              placeholder="홍길동"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
+      <div className="booking-col">
+        {/* ① 캘린더 */}
+        <Calendar value={date} onSelect={setDate} reloadToken={calToken} />
+
+        {/* ② 시간대 */}
+        <div>
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 12,
+            }}
+          >
+            희망 시간대 {date && <b style={{ color: "var(--text-primary)" }}>· {formatDateKo(date)}</b>}
+          </span>
+          {!date && (
+            <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+              캘린더에서 날짜를 먼저 선택해 주세요.
+            </p>
+          )}
+          {date && loadingSlots && (
+            <p style={{ fontSize: 14, color: "var(--text-muted)" }}>예약 가능 시간을 확인하고 있어요…</p>
+          )}
+          {date && slots && (
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {slots.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  className={`slot-chip${slot === s.value && modalOpen ? " is-active" : ""}`}
+                  disabled={!s.available}
+                  onClick={() => openModal(s.value)}
+                >
+                  {s.label}
+                  {!s.available && " · 마감"}
+                </button>
+              ))}
+            </div>
+          )}
+          {date && slots && slots.every((s) => !s.available) && (
+            <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 12 }}>
+              이 날은 예약이 모두 마감되었어요. 다른 날짜를 선택해 주세요.
+            </p>
+          )}
+          {error && !modalOpen && (
+            <p
+              style={{
+                fontSize: 13.5,
+                color: "var(--error)",
+                background: "var(--error-soft)",
+                padding: "10px 14px",
+                borderRadius: "var(--radius-md)",
+                marginTop: 12,
+              }}
+            >
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* ③ 이용 안내 */}
+        <Card
+          elevation="none"
+          style={{ background: "var(--surface-sunken)", border: "1px solid var(--border-soft)" }}
+        >
+          <ul className="booking-info-grid" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {INFO.map(([IconCmp, t, d]) => (
+              <li key={t} style={{ display: "flex", gap: 12 }}>
+                <span style={{ color: "var(--mocha-600)", marginTop: 1 }}>
+                  <IconCmp size={18} strokeWidth={1.75} />
+                </span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{t}</div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-muted)",
+                      whiteSpace: "pre-line",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {d}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+
+      {/* 신청 모달 */}
+      <Modal open={modalOpen} onClose={closeModal} ariaLabel="예약 신청">
+        {done ? (
+          <div style={{ textAlign: "center", padding: "12px 0 4px" }}>
+            <span
+              style={{
+                display: "inline-flex",
+                width: 56,
+                height: 56,
+                borderRadius: "999px",
+                background: "var(--success-soft)",
+                color: "var(--success)",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 18,
+              }}
+            >
+              <Check size={28} strokeWidth={2} />
+            </span>
+            <h2 style={{ fontSize: 28 }}>예약 신청 완료</h2>
+            <p style={{ marginTop: 14, fontSize: 15, lineHeight: 1.7, color: "var(--text-secondary)" }}>
+              {done.name}님, 신청해 주셔서 감사합니다.
+              <br />
+              <b style={{ color: "var(--text-primary)" }}>
+                {formatDateKo(done.date)} {slotLabel(done.time_slot)} · {done.service}
+              </b>
+              <br />
+              확인 후 남겨주신 연락처로 예약 확정을 안내드릴게요.
+            </p>
+            <div style={{ marginTop: 26 }}>
+              <Button full onClick={closeModal}>
+                확인
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <span className="mb-eyebrow">Booking</span>
+              <h2 style={{ fontSize: 24, marginTop: 8 }}>
+                {date && formatDateKo(date)}{" "}
+                <span style={{ color: "var(--mocha-600)" }}>{slot && slotLabel(slot)}</span>
+              </h2>
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="modal-service">
+                시술 선택
+              </label>
+              <div className="select-wrap">
+                <select
+                  id="modal-service"
+                  value={service}
+                  className={service ? "" : "is-placeholder"}
+                  onChange={(e) => setService(e.target.value)}
+                >
+                  <option value="">메뉴를 골라주세요</option>
+                  {CATALOG.map((s) => {
+                    const ok = fits(slot, s.durationHours);
+                    return (
+                      <option key={s.name} value={s.name} disabled={!ok}>
+                        {s.name} · {durationLabel(s.durationHours)}
+                        {!ok ? " (시간 부족)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                <svg
+                  className="select-chevron"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+              {selectedService && serviceFits && (
+                <span className="field-hint">
+                  {slotLabel(slot)} 시작 · {durationLabel(selectedService.durationHours)} 소요
+                </span>
+              )}
+              {selectedService && !serviceFits && (
+                <span className="field-error-text">
+                  이 시간에는 {selectedService.name}({durationLabel(selectedService.durationHours)})
+                  시술이 어려워요. 다른 시간을 선택해 주세요.
+                </span>
+              )}
+            </div>
+
+            <Input label="성함" placeholder="홍길동" value={name} onChange={(e) => setName(e.target.value)} />
             <Input
               label="연락처"
               prefix="+82"
@@ -195,74 +361,7 @@ export function BookingForm({ initialService }: { initialService: string }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
-            <div className="span-2">
-              <Select
-                label="시술 선택"
-                placeholder="메뉴를 골라주세요"
-                options={[...SERVICES]}
-                value={service}
-                onChange={(e) => setService(e.target.value)}
-              />
-            </div>
-            <div className="span-2">
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "var(--text-secondary)",
-                  display: "block",
-                  marginBottom: 10,
-                }}
-              >
-                희망 날짜
-              </span>
-              <Calendar value={date} onSelect={setDate} reloadToken={calToken} />
-            </div>
-            <div className="span-2">
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "var(--text-secondary)",
-                  display: "block",
-                  marginBottom: 10,
-                }}
-              >
-                희망 시간대
-              </span>
-              {!date && (
-                <p style={{ fontSize: 13.5, color: "var(--text-muted)" }}>
-                  날짜를 먼저 선택하시면 예약 가능한 시간이 표시돼요.
-                </p>
-              )}
-              {date && loadingSlots && (
-                <p style={{ fontSize: 13.5, color: "var(--text-muted)" }}>
-                  예약 가능 시간을 확인하고 있어요…
-                </p>
-              )}
-              {date && slots && (
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {slots.map((s) => (
-                    <button
-                      key={s.value}
-                      type="button"
-                      className={`slot-chip${slot === s.value ? " is-active" : ""}`}
-                      disabled={!s.available}
-                      onClick={() => setSlot(s.value)}
-                    >
-                      {s.label}
-                      {!s.available && " · 마감"}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {date && slots && slots.every((s) => !s.available) && (
-                <p style={{ fontSize: 13.5, color: "var(--text-muted)", marginTop: 10 }}>
-                  이 날은 예약이 모두 마감되었어요. 다른 날짜를 선택해 주세요.
-                </p>
-              )}
-            </div>
-            <div className="span-2">
+            <div>
               <span
                 style={{
                   fontSize: 13,
@@ -282,76 +381,26 @@ export function BookingForm({ initialService }: { initialService: string }) {
                 onChange={(e) => setMemo(e.target.value)}
               />
             </div>
-            <div className="span-2" style={{ marginTop: 4 }}>
-              <Checkbox
-                checked={agree}
-                onChange={setAgree}
-                label="개인정보 수집·이용에 동의합니다"
-              />
-            </div>
+            <Checkbox checked={agree} onChange={setAgree} label="개인정보 수집·이용에 동의합니다" />
             {error && (
-              <div className="span-2">
-                <p
-                  style={{
-                    fontSize: 13.5,
-                    color: "var(--error)",
-                    background: "var(--error-soft)",
-                    padding: "10px 14px",
-                    borderRadius: "var(--radius-md)",
-                  }}
-                >
-                  {error}
-                </p>
-              </div>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--error)",
+                  background: "var(--error-soft)",
+                  padding: "10px 14px",
+                  borderRadius: "var(--radius-md)",
+                }}
+              >
+                {error}
+              </p>
             )}
-            <div className="span-2" style={{ marginTop: 6 }}>
-              <Button full size="lg" disabled={!canSubmit || submitting} onClick={submit}>
-                {submitting ? "신청 중…" : "예약 신청하기"}
-              </Button>
-            </div>
+            <Button full size="lg" disabled={!canSubmit || submitting} onClick={submit}>
+              {submitting ? "신청 중…" : "예약 신청하기"}
+            </Button>
           </div>
-        </Card>
-
-        <Card
-          elevation="none"
-          style={{ background: "var(--surface-sunken)", border: "1px solid var(--border-soft)" }}
-        >
-          <h3 style={{ fontSize: 20 }}>이용 안내</h3>
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: "18px 0 0",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-            }}
-          >
-            {INFO.map(([IconCmp, t, d]) => (
-              <li key={t} style={{ display: "flex", gap: 12 }}>
-                <span style={{ color: "var(--mocha-600)", marginTop: 1 }}>
-                  <IconCmp size={18} strokeWidth={1.75} />
-                </span>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-                    {t}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--text-muted)",
-                      whiteSpace: "pre-line",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {d}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
+        )}
+      </Modal>
     </>
   );
 }

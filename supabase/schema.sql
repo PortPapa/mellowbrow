@@ -1,25 +1,36 @@
 -- =====================================================================
--- mellowbrow 예약시스템 스키마
+-- mellowbrow 예약시스템 스키마 (v2 — 1시간 슬롯 + 시술별 소요시간)
 -- Supabase 대시보드 > SQL Editor 에서 이 파일 전체를 1회 실행하세요.
+--
+-- ⚠️ v1 스키마로 만든 테이블이 이미 있다면 먼저 삭제 후 실행:
+--    drop table if exists reservations; drop table if exists blocked_slots;
 -- =====================================================================
+
+-- 점유 구간 겹침 방지(exclusion constraint)에 필요
+create extension if not exists btree_gist;
 
 create table if not exists reservations (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   date date not null,
-  time_slot text not null,            -- '11:00' | '13:00' | '15:00' | '17:00' | '19:00'
+  time_slot text not null,              -- 'HH:00' 시작 시간 (11:00 ~ 20:00)
+  duration_hours int not null default 2 -- 점유 시간 수: [시작, 시작+duration) 연속 점유
+    check (duration_hours between 1 and 6),
+  slot_hour int generated always as ((split_part(time_slot, ':', 1))::int) stored,
   service text not null,
   name text not null,
   phone text not null,
   memo text,
   status text not null default 'pending'
-    check (status in ('pending', 'confirmed', 'done', 'cancelled'))
-);
+    check (status in ('pending', 'confirmed', 'done', 'cancelled')),
 
--- 이중 예약 방지: 취소되지 않은 예약은 (날짜, 슬롯) 조합이 유일해야 함
-create unique index if not exists uniq_active_slot
-  on reservations(date, time_slot)
-  where status <> 'cancelled';
+  -- 이중 예약 방지의 최종 방어선: 취소되지 않은 예약끼리
+  -- 같은 날짜에서 점유 구간 [slot_hour, slot_hour+duration_hours)가 겹칠 수 없음
+  constraint no_overlap exclude using gist (
+    date with =,
+    int4range(slot_hour, slot_hour + duration_hours) with &&
+  ) where (status <> 'cancelled')
+);
 
 create index if not exists idx_reservations_date on reservations(date);
 create index if not exists idx_reservations_status on reservations(status);
@@ -28,7 +39,7 @@ create table if not exists blocked_slots (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   date date not null,
-  time_slot text not null,            -- 슬롯 단위 차단. 종일 휴무 = 5개 슬롯 모두 차단
+  time_slot text not null,              -- 시간 단위 차단 ('11:00' 등). 종일 휴무 = 전 시간 차단
   unique(date, time_slot)
 );
 

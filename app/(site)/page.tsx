@@ -4,6 +4,9 @@ import { Card } from "@/components/ui/Card";
 import { ServiceCard } from "@/components/ui/ServiceCard";
 import { Section } from "@/components/site/Section";
 import { Photo } from "@/components/site/Photo";
+import { CATALOG, durationLabel } from "@/lib/catalog";
+
+const SIGNATURE = ["자연눈썹", "콤보눈썹", "수지눈썹"];
 
 export default function HomePage() {
   return (
@@ -187,34 +190,19 @@ export default function HomePage() {
           </Button>
         </div>
         <div className="grid-3">
-          <ServiceCard
-            titleKo="자연눈썹"
-            titleEn="Natural"
-            tag="시그니처"
-            description="결을 한 올씩 살린 가장 자연스러운 디자인."
-            price="₩120,000"
-            duration="현금가 · 리터치 미포함"
-            image="/photos/natural.jpg"
-            href="/booking?service=자연눈썹"
-          />
-          <ServiceCard
-            titleKo="콤보눈썹"
-            titleEn="Combo"
-            description="자연결 위에 음영을 더해 또렷하게."
-            price="₩150,000"
-            duration="현금가 · 리터치 미포함"
-            image="/photos/combo.jpg"
-            href="/booking?service=콤보눈썹"
-          />
-          <ServiceCard
-            titleKo="수지눈썹"
-            titleEn="Suji"
-            description="은은한 음영으로 메이크업한 듯 풍성하게."
-            price="₩170,000"
-            duration="현금가 · 리터치 미포함"
-            image="/photos/suji.jpg"
-            href="/booking?service=수지눈썹"
-          />
+          {CATALOG.filter((s) => SIGNATURE.includes(s.name)).map((s) => (
+            <ServiceCard
+              key={s.name}
+              titleKo={s.name}
+              titleEn={s.en}
+              tag={s.tag}
+              description={s.desc}
+              price={s.price}
+              duration={s.priceNote ?? durationLabel(s.durationHours)}
+              image={s.image}
+              href={`/booking?service=${encodeURIComponent(s.name)}`}
+            />
+          ))}
         </div>
       </Section>
 

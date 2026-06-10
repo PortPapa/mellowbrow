@@ -1,6 +1,7 @@
 // 데이터 접근 계층 — Supabase 구현 + (환경변수 미설정 시) 로컬 데모용 in-memory fallback.
 // Supabase 접근은 항상 서버에서만 일어난다 (service-role 키, 클라이언트 노출 금지).
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { slotHour } from "@/lib/slots";
 
 export type ReservationStatus = "pending" | "confirmed" | "done" | "cancelled";
 
@@ -8,7 +9,8 @@ export interface Reservation {
   id: string;
   created_at: string;
   date: string; // YYYY-MM-DD
-  time_slot: string; // '11:00' 등
+  time_slot: string; // 'HH:00' 시작 시간
+  duration_hours: number; // 점유 시간 수 — [start, start+D)
   service: string;
   name: string;
   phone: string;
@@ -16,9 +18,16 @@ export interface Reservation {
   status: ReservationStatus;
 }
 
+/** 활성 예약의 점유 구간 */
+export interface Span {
+  time_slot: string;
+  duration_hours: number;
+}
+
 export interface CreateReservationInput {
   date: string;
   time_slot: string;
+  duration_hours: number;
   service: string;
   name: string;
   phone: string;
@@ -36,18 +45,23 @@ export interface ListFilter {
 }
 
 export interface Database {
-  /** 해당 날짜에 점유된(취소 제외) 슬롯 목록 */
-  takenSlots(date: string): Promise<string[]>;
+  /** 해당 날짜의 활성(취소 제외) 예약 점유 구간 목록 */
+  activeSpans(date: string): Promise<Span[]>;
   /** 해당 날짜에 차단(휴무)된 슬롯 목록 */
   blockedSlots(date: string): Promise<string[]>;
-  /** 날짜 범위의 점유 슬롯 — { 'YYYY-MM-DD': ['11:00', ...] } */
-  takenSlotsInRange(from: string, to: string): Promise<Record<string, string[]>>;
+  /** 날짜 범위의 활성 점유 구간 — { 'YYYY-MM-DD': Span[] } */
+  activeSpansInRange(from: string, to: string): Promise<Record<string, Span[]>>;
   /** 날짜 범위의 차단 슬롯 — { 'YYYY-MM-DD': ['11:00', ...] } */
   blockedSlotsInRange(from: string, to: string): Promise<Record<string, string[]>>;
   createReservation(input: CreateReservationInput): Promise<CreateResult>;
   listReservations(filter: ListFilter): Promise<Reservation[]>;
   updateReservationStatus(id: string, status: ReservationStatus): Promise<Reservation | null>;
   setBlocked(date: string, slot: string, blocked: boolean): Promise<void>;
+}
+
+/** 두 점유 구간 [aStart, aStart+aDur) / [bStart, bStart+bDur) 겹침 여부 */
+export function spansOverlap(aStart: number, aDur: number, bStart: number, bDur: number): boolean {
+  return aStart < bStart + bDur && bStart < aStart + aDur;
 }
 
 /* ============================ Supabase ============================ */
@@ -61,14 +75,17 @@ class SupabaseDb implements Database {
     });
   }
 
-  async takenSlots(date: string): Promise<string[]> {
+  async activeSpans(date: string): Promise<Span[]> {
     const { data, error } = await this.client
       .from("reservations")
-      .select("time_slot")
+      .select("time_slot, duration_hours")
       .eq("date", date)
       .neq("status", "cancelled");
-    if (error) throw new Error(`takenSlots: ${error.message}`);
-    return (data ?? []).map((r) => r.time_slot);
+    if (error) throw new Error(`activeSpans: ${error.message}`);
+    return (data ?? []).map((r) => ({
+      time_slot: String(r.time_slot),
+      duration_hours: Number(r.duration_hours),
+    }));
   }
 
   async blockedSlots(date: string): Promise<string[]> {
@@ -80,15 +97,23 @@ class SupabaseDb implements Database {
     return (data ?? []).map((r) => r.time_slot);
   }
 
-  async takenSlotsInRange(from: string, to: string): Promise<Record<string, string[]>> {
+  async activeSpansInRange(from: string, to: string): Promise<Record<string, Span[]>> {
     const { data, error } = await this.client
       .from("reservations")
-      .select("date, time_slot")
+      .select("date, time_slot, duration_hours")
       .gte("date", from)
       .lte("date", to)
       .neq("status", "cancelled");
-    if (error) throw new Error(`takenSlotsInRange: ${error.message}`);
-    return groupByDate(data ?? []);
+    if (error) throw new Error(`activeSpansInRange: ${error.message}`);
+    const map: Record<string, Span[]> = {};
+    for (const r of data ?? []) {
+      const d = String(r.date).slice(0, 10);
+      (map[d] ??= []).push({
+        time_slot: String(r.time_slot),
+        duration_hours: Number(r.duration_hours),
+      });
+    }
+    return map;
   }
 
   async blockedSlotsInRange(from: string, to: string): Promise<Record<string, string[]>> {
@@ -98,19 +123,28 @@ class SupabaseDb implements Database {
       .gte("date", from)
       .lte("date", to);
     if (error) throw new Error(`blockedSlotsInRange: ${error.message}`);
-    return groupByDate(data ?? []);
+    const map: Record<string, string[]> = {};
+    for (const r of data ?? []) {
+      const d = String(r.date).slice(0, 10);
+      (map[d] ??= []).push(String(r.time_slot));
+    }
+    return map;
   }
 
   async createReservation(input: CreateReservationInput): Promise<CreateResult> {
-    // 차단 슬롯 확인 후 insert — 이중 예약은 partial unique index가 최종 방어
+    // 차단 슬롯이 점유 구간에 걸리는지 확인 — 겹침 자체는 exclusion constraint가 최종 방어
     const blocked = await this.blockedSlots(input.date);
-    if (blocked.includes(input.time_slot)) return { ok: false, reason: "taken" };
+    const start = slotHour(input.time_slot);
+    if (blocked.some((b) => spansOverlap(start, input.duration_hours, slotHour(b), 1))) {
+      return { ok: false, reason: "taken" };
+    }
 
     const { data, error } = await this.client
       .from("reservations")
       .insert({
         date: input.date,
         time_slot: input.time_slot,
+        duration_hours: input.duration_hours,
         service: input.service,
         name: input.name,
         phone: input.phone,
@@ -121,7 +155,10 @@ class SupabaseDb implements Database {
       .single();
 
     if (error) {
-      if (error.code === "23505") return { ok: false, reason: "taken" };
+      // 23505 = unique violation, 23P01 = exclusion violation (점유 구간 겹침)
+      if (error.code === "23505" || error.code === "23P01") {
+        return { ok: false, reason: "taken" };
+      }
       throw new Error(`createReservation: ${error.message}`);
     }
     return { ok: true, reservation: normalizeRow(data) };
@@ -167,15 +204,6 @@ class SupabaseDb implements Database {
   }
 }
 
-function groupByDate(rows: { date: unknown; time_slot: unknown }[]): Record<string, string[]> {
-  const map: Record<string, string[]> = {};
-  for (const r of rows) {
-    const d = String(r.date).slice(0, 10);
-    (map[d] ??= []).push(String(r.time_slot));
-  }
-  return map;
-}
-
 // Supabase date 컬럼은 'YYYY-MM-DD' 문자열로 오지만 방어적으로 자른다
 function normalizeRow(row: Record<string, unknown>): Reservation {
   return {
@@ -183,6 +211,7 @@ function normalizeRow(row: Record<string, unknown>): Reservation {
     created_at: String(row.created_at),
     date: String(row.date).slice(0, 10),
     time_slot: String(row.time_slot),
+    duration_hours: Number(row.duration_hours ?? 2),
     service: String(row.service),
     name: String(row.name),
     phone: String(row.phone),
@@ -206,10 +235,10 @@ function memStore(): MemoryStore {
 }
 
 class MemoryDb implements Database {
-  async takenSlots(date: string): Promise<string[]> {
+  async activeSpans(date: string): Promise<Span[]> {
     return memStore()
       .reservations.filter((r) => r.date === date && r.status !== "cancelled")
-      .map((r) => r.time_slot);
+      .map((r) => ({ time_slot: r.time_slot, duration_hours: r.duration_hours }));
   }
 
   async blockedSlots(date: string): Promise<string[]> {
@@ -218,11 +247,11 @@ class MemoryDb implements Database {
       .map((b) => b.time_slot);
   }
 
-  async takenSlotsInRange(from: string, to: string): Promise<Record<string, string[]>> {
-    const map: Record<string, string[]> = {};
+  async activeSpansInRange(from: string, to: string): Promise<Record<string, Span[]>> {
+    const map: Record<string, Span[]> = {};
     for (const r of memStore().reservations) {
       if (r.date >= from && r.date <= to && r.status !== "cancelled") {
-        (map[r.date] ??= []).push(r.time_slot);
+        (map[r.date] ??= []).push({ time_slot: r.time_slot, duration_hours: r.duration_hours });
       }
     }
     return map;
@@ -240,16 +269,20 @@ class MemoryDb implements Database {
 
   async createReservation(input: CreateReservationInput): Promise<CreateResult> {
     const store = memStore();
-    const taken = await this.takenSlots(input.date);
+    const start = slotHour(input.time_slot);
+    const spans = await this.activeSpans(input.date);
     const blocked = await this.blockedSlots(input.date);
-    if (taken.includes(input.time_slot) || blocked.includes(input.time_slot)) {
-      return { ok: false, reason: "taken" };
-    }
+    const conflict =
+      spans.some((s) => spansOverlap(start, input.duration_hours, slotHour(s.time_slot), s.duration_hours)) ||
+      blocked.some((b) => spansOverlap(start, input.duration_hours, slotHour(b), 1));
+    if (conflict) return { ok: false, reason: "taken" };
+
     const reservation: Reservation = {
       id: `mem-${store.seq++}`,
       created_at: new Date().toISOString(),
       date: input.date,
       time_slot: input.time_slot,
+      duration_hours: input.duration_hours,
       service: input.service,
       name: input.name,
       phone: input.phone,

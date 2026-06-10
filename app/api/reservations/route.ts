@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getDb } from "@/lib/db";
-import { SERVICES, SLOT_VALUES, isBookableDate, isClosedDay, isSlotInPast } from "@/lib/slots";
+import { getDb, spansOverlap } from "@/lib/db";
+import { getService, SERVICE_NAMES } from "@/lib/catalog";
+import { SLOT_VALUES, isBookableDate, isClosedDay, isSlotInPast, slotHour } from "@/lib/slots";
 
 const schema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time_slot: z.string().refine((v) => SLOT_VALUES.includes(v), "올바른 시간대가 아니에요."),
-  service: z.enum(SERVICES),
+  service: z.enum(SERVICE_NAMES),
   name: z.string().trim().min(1, "성함을 입력해 주세요.").max(50),
   phone: z
     .string()
@@ -40,9 +41,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "이미 지난 시간대예요." }, { status: 400 });
   }
 
+  const service = getService(input.service);
+  if (!service) {
+    return NextResponse.json({ error: "올바른 시술이 아니에요." }, { status: 400 });
+  }
+  const duration = service.durationHours;
+  const start = slotHour(input.time_slot);
+
   try {
     const db = getDb();
-    const result = await db.createReservation(input);
+
+    // 점유 구간 [start, start+duration) 재검증 — 레이스는 DB exclusion constraint가 최종 방어
+    const spans = await db.activeSpans(input.date);
+    if (spans.some((s) => spansOverlap(start, duration, slotHour(s.time_slot), s.duration_hours))) {
+      return NextResponse.json(
+        { error: "방금 마감된 시간이에요. 다른 시간을 선택해 주세요." },
+        { status: 409 },
+      );
+    }
+
+    const result = await db.createReservation({
+      date: input.date,
+      time_slot: input.time_slot,
+      duration_hours: duration,
+      service: input.service,
+      name: input.name,
+      phone: input.phone,
+      memo: input.memo,
+    });
     if (!result.ok) {
       return NextResponse.json(
         { error: "방금 마감된 시간이에요. 다른 시간을 선택해 주세요." },

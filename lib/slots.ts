@@ -1,30 +1,26 @@
 // 예약 슬롯 정의 + KST 날짜 유틸 (서버/클라이언트 공용)
+// 시작 시간: 매시 정각 11:00 ~ 20:00 (20시 시작 예약은 마감 이후까지 시술)
+// 점유 모델: 예약(start, durationHours)이 [start, start+D) 시간대를 연속 점유
 
-export const SLOTS = [
-  { value: "11:00", label: "오전 11:00" },
-  { value: "13:00", label: "오후 1:00" },
-  { value: "15:00", label: "오후 3:00" },
-  { value: "17:00", label: "오후 5:00" },
-  { value: "19:00", label: "오후 7:00" },
-] as const;
+export const SLOT_HOURS = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20] as const;
+
+export function hourLabel(h: number): string {
+  if (h < 12) return `오전 ${h}:00`;
+  if (h === 12) return `낮 12:00`;
+  return `오후 ${h - 12}:00`;
+}
+
+export const SLOTS = SLOT_HOURS.map((h) => ({ value: `${h}:00`, label: hourLabel(h) }));
 
 export const SLOT_VALUES: string[] = SLOTS.map((s) => s.value);
 
-export function slotLabel(value: string): string {
-  return SLOTS.find((s) => s.value === value)?.label ?? value;
+export function slotHour(value: string): number {
+  return Number(value.split(":")[0]);
 }
 
-export const SERVICES = [
-  "자연눈썹",
-  "콤보눈썹",
-  "수지눈썹",
-  "눈썹 추가 리터치",
-  "아이라인",
-  "입술 틴트립",
-  "SMP 두피문신",
-  "미인점",
-  "블랙틴트 케라틴펌",
-] as const;
+export function slotLabel(value: string): string {
+  return hourLabel(slotHour(value));
+}
 
 /** 오늘부터 며칠 뒤까지 예약을 받을지 */
 export const MAX_DAYS_AHEAD = 60;

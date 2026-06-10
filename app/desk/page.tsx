@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Logo } from "@/components/ui/Logo";
 import { DESK_PATH } from "@/lib/constants";
-import { SLOTS, slotLabel, todayKST } from "@/lib/slots";
+import { SLOT_HOURS, hourLabel, slotHour, slotLabel, todayKST } from "@/lib/slots";
+import { durationLabel } from "@/lib/catalog";
 import type { Reservation, ReservationStatus } from "@/lib/db";
 
 const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -89,9 +90,20 @@ export default function DeskPage() {
     router.replace(`${DESK_PATH}/login`);
   }
 
-  const activeBySlot = new Map(
-    dayReservations.filter((r) => r.status !== "cancelled").map((r) => [r.time_slot, r]),
-  );
+  // 시간별 점유 맵 — 예약(start, duration)이 [start, start+D) 시간을 차지
+  const occupancy = new Map<number, { r: Reservation; isStart: boolean }>();
+  for (const r of dayReservations) {
+    if (r.status === "cancelled") continue;
+    const start = slotHour(r.time_slot);
+    for (let h = start; h < start + r.duration_hours; h++) {
+      occupancy.set(h, { r, isStart: h === start });
+    }
+  }
+  // 21시 이후는 점유(스필오버)가 있을 때만 표시
+  const boardHours: number[] = [
+    ...SLOT_HOURS,
+    ...[21, 22, 23].filter((h) => occupancy.has(h)),
+  ];
 
   function StatusActions({ r }: { r: Reservation }) {
     return (
@@ -139,7 +151,7 @@ export default function DeskPage() {
             <b style={{ fontSize: 15 }}>{r.name}</b>
             <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
               {showDate && `${r.date} · `}
-              {slotLabel(r.time_slot)} · {r.service}
+              {slotLabel(r.time_slot)} · {r.service} · {durationLabel(r.duration_hours)}
             </span>
           </div>
           <div style={{ marginTop: 4, fontSize: 13, color: "var(--text-muted)" }}>
@@ -212,13 +224,14 @@ export default function DeskPage() {
             <Input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {SLOTS.map((s) => {
-            const r = activeBySlot.get(s.value);
-            const isBlocked = blocked.includes(s.value);
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {boardHours.map((h) => {
+            const slotValue = `${h}:00`;
+            const entry = occupancy.get(h);
+            const isBlocked = blocked.includes(slotValue);
             return (
               <div
-                key={s.value}
+                key={h}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -226,33 +239,43 @@ export default function DeskPage() {
                   gap: 12,
                   padding: "10px 14px",
                   borderRadius: "var(--radius-md)",
-                  background: r
+                  background: entry
                     ? "var(--primary-soft)"
                     : isBlocked
                       ? "var(--surface-fill)"
                       : "var(--surface-page)",
                   border: "1px solid var(--border-soft)",
                   flexWrap: "wrap",
+                  opacity: entry && !entry.isStart ? 0.75 : 1,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <b style={{ fontSize: 14, minWidth: 76 }}>{s.label}</b>
-                  {r ? (
-                    <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
-                      <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>{" "}
-                      {r.name} · {r.service}
-                    </span>
+                  <b style={{ fontSize: 14, minWidth: 76 }}>{hourLabel(h)}</b>
+                  {entry ? (
+                    entry.isStart ? (
+                      <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
+                        <Badge tone={STATUS_TONE[entry.r.status]}>
+                          {STATUS_LABEL[entry.r.status]}
+                        </Badge>{" "}
+                        {entry.r.name} · {entry.r.service} ·{" "}
+                        {durationLabel(entry.r.duration_hours)}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                        ↳ {entry.r.name}님 시술 진행 중
+                      </span>
+                    )
                   ) : isBlocked ? (
                     <span style={{ fontSize: 13, color: "var(--text-muted)" }}>휴무 (차단됨)</span>
                   ) : (
                     <span style={{ fontSize: 13, color: "var(--text-muted)" }}>비어 있음</span>
                   )}
                 </div>
-                {!r && (
+                {!entry && h <= 20 && (
                   <Button
                     size="sm"
                     variant={isBlocked ? "secondary" : "quiet"}
-                    onClick={() => toggleBlock(s.value, !isBlocked)}
+                    onClick={() => toggleBlock(slotValue, !isBlocked)}
                   >
                     {isBlocked ? "차단 해제" : "차단"}
                   </Button>

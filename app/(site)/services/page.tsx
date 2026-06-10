@@ -3,24 +3,12 @@ import { Button } from "@/components/ui/Button";
 import { ServiceCard } from "@/components/ui/ServiceCard";
 import { Accordion } from "@/components/ui/Accordion";
 import { Section } from "@/components/site/Section";
+import { CATALOG, durationLabel } from "@/lib/catalog";
 
 export const metadata: Metadata = {
   title: "시술 안내",
   description: "멜로우브로우의 시술 메뉴와 가격 안내. 모든 시술은 1:1 맞춤 상담 후 진행됩니다.",
 };
-
-// [한글명, 영문 라벨, 태그, 설명, 가격, 비고, 이미지]
-const SERVICES: [string, string, string | null, string, string, string | undefined, string][] = [
-  ["자연눈썹", "Natural", "시그니처", "결을 한 올씩 살린 가장 자연스러운 디자인.", "₩120,000", "현금가 · 리터치 미포함", "/photos/natural.jpg"],
-  ["콤보눈썹", "Combo", null, "자연결 위에 음영을 더해 또렷하게.", "₩150,000", "현금가 · 리터치 미포함", "/photos/combo.jpg"],
-  ["수지눈썹", "Suji", "인기", "은은한 음영으로 메이크업한 듯 풍성하게.", "₩170,000", "현금가 · 리터치 미포함", "/photos/suji.jpg"],
-  ["눈썹 추가 리터치", "Retouch", null, "신규 2개월 이내 · 재방문 유지터치 3개월 이내 방문 시.", "₩50,000", undefined, "/photos/retouch.jpg"],
-  ["아이라인", "Eyeline", null, "또렷하고 깊은 눈매를 자연스럽게.", "₩100,000", undefined, "/photos/eyeline.jpg"],
-  ["입술 틴트립", "Tint Lip", null, "입술 비대칭 · 어두운 입술 톤업 · 창백한 입술.", "₩400,000", undefined, "/photos/lips.jpg"],
-  ["SMP 두피문신", "SMP", null, "헤어라인 · 가르마 · 정수리 · M자 · 흉터커버 · 구렛나루.", "1부위 ₩300,000~", "2부위 이상 견적문의", "/photos/smp.jpg"],
-  ["미인점", "Beauty Spot", null, "포인트가 되어주는 자연스러운 미인점.", "₩20,000", undefined, "/photos/spot.jpg"],
-  ["블랙틴트 케라틴펌", "Keratin Perm", null, "클리닉 + 블랙틴트로 결을 살린 브로우 펌.", "₩40,000", undefined, "/photos/perm.jpg"],
-];
 
 const FAQ = [
   {
@@ -65,17 +53,17 @@ export default function ServicesPage() {
           </p>
         </div>
         <div className="grid-3" style={{ marginTop: 48 }}>
-          {SERVICES.map(([ko, en, tag, desc, price, duration, image]) => (
+          {CATALOG.map((s) => (
             <ServiceCard
-              key={ko}
-              titleKo={ko}
-              titleEn={en}
-              tag={tag}
-              description={desc}
-              price={price}
-              duration={duration}
-              image={image}
-              href={`/booking?service=${encodeURIComponent(ko)}`}
+              key={s.name}
+              titleKo={s.name}
+              titleEn={s.en}
+              tag={s.tag}
+              description={s.desc}
+              price={s.price}
+              duration={s.priceNote ?? durationLabel(s.durationHours)}
+              image={s.image}
+              href={`/booking?service=${encodeURIComponent(s.name)}`}
             />
           ))}
         </div>
