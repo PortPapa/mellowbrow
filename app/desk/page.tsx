@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, LogOut, RefreshCw } from "lucide-react";
+import { CalendarDays, ImagePlus, LogOut, RefreshCw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Logo } from "@/components/ui/Logo";
-import { DESK_PATH } from "@/lib/constants";
+import { DESK_PATH, GALLERY_CATEGORIES } from "@/lib/constants";
+import type { GalleryItem } from "@/lib/db";
 import { SLOT_HOURS, hourLabel, slotHour, slotLabel, todayKST } from "@/lib/slots";
 import { durationLabel } from "@/lib/catalog";
 import type { Reservation, ReservationStatus } from "@/lib/db";
@@ -36,6 +37,58 @@ export default function DeskPage() {
   const [pending, setPending] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // 갤러리 관리
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [upFile, setUpFile] = useState<File | null>(null);
+  const [upCategory, setUpCategory] = useState<string>(GALLERY_CATEGORIES[0]);
+  const [uploading, setUploading] = useState(false);
+  const [galleryError, setGalleryError] = useState("");
+
+  const loadGallery = useCallback(async () => {
+    try {
+      const res = await fetch("/api/gallery");
+      if (!res.ok) throw new Error();
+      setGallery(((await res.json()) as { items: GalleryItem[] }).items);
+    } catch {
+      setGalleryError("갤러리를 불러오지 못했어요.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadGallery();
+  }, [loadGallery]);
+
+  async function uploadGallery() {
+    if (!upFile || uploading) return;
+    setUploading(true);
+    setGalleryError("");
+    try {
+      const form = new FormData();
+      form.append("file", upFile);
+      form.append("category", upCategory);
+      const res = await fetch(`/api${DESK_PATH}/gallery`, { method: "POST", body: form });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setGalleryError(body.error ?? "업로드에 실패했어요.");
+        return;
+      }
+      setUpFile(null);
+      void loadGallery();
+    } catch {
+      setGalleryError("네트워크 오류가 발생했어요.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function deleteGallery(id: string) {
+    const res = await fetch(`/api${DESK_PATH}/gallery?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    if (res.ok) void loadGallery();
+    else setGalleryError("삭제에 실패했어요.");
+  }
 
   const load = useCallback(async (d: string) => {
     setLoading(true);
@@ -301,7 +354,7 @@ export default function DeskPage() {
       </Card>
 
       {/* 다가오는 대기 예약 */}
-      <Card elevation="sm">
+      <Card elevation="sm" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 19, marginBottom: 6 }}>확인이 필요한 신청 (대기)</h3>
         {!loading && pending.length === 0 && (
           <p style={{ fontSize: 13.5, color: "var(--text-muted)", padding: "10px 0" }}>
@@ -311,6 +364,126 @@ export default function DeskPage() {
         {pending.map((r) => (
           <ReservationRow key={r.id} r={r} showDate />
         ))}
+      </Card>
+
+      {/* 갤러리 관리 */}
+      <Card elevation="sm">
+        <h3 style={{ fontSize: 19, display: "flex", alignItems: "center", gap: 8 }}>
+          <ImagePlus size={18} strokeWidth={1.75} /> 갤러리 관리
+        </h3>
+        <p style={{ marginTop: 6, fontSize: 13, color: "var(--text-muted)" }}>
+          시술 사진을 올리면 홈페이지 갤러리에 바로 표시돼요. (이미지 8MB 이하)
+        </p>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            flexWrap: "wrap",
+            marginTop: 14,
+          }}
+        >
+          <div className="select-wrap" style={{ width: 150 }}>
+            <select value={upCategory} onChange={(e) => setUpCategory(e.target.value)}>
+              {GALLERY_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <svg
+              className="select-chevron"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setUpFile(e.target.files?.[0] ?? null)}
+            style={{ fontSize: 13.5, fontFamily: "var(--font-sans)" }}
+          />
+          <Button size="sm" disabled={!upFile || uploading} onClick={uploadGallery}>
+            {uploading ? "업로드 중…" : "업로드"}
+          </Button>
+        </div>
+        {galleryError && (
+          <p
+            style={{
+              fontSize: 13.5,
+              color: "var(--error)",
+              background: "var(--error-soft)",
+              padding: "10px 14px",
+              borderRadius: "var(--radius-md)",
+              marginTop: 12,
+            }}
+          >
+            {galleryError}
+          </p>
+        )}
+        {gallery.length === 0 ? (
+          <p style={{ fontSize: 13.5, color: "var(--text-muted)", padding: "14px 0 4px" }}>
+            아직 올린 사진이 없어요. 사진이 없으면 갤러리에 기본 이미지가 표시돼요.
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+              gap: 12,
+              marginTop: 18,
+            }}
+          >
+            {gallery.map((g) => (
+              <div key={g.id} style={{ position: "relative" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={g.image_url}
+                  alt={g.category}
+                  style={{
+                    width: "100%",
+                    aspectRatio: "1 / 1",
+                    objectFit: "cover",
+                    borderRadius: "var(--radius-md)",
+                    display: "block",
+                  }}
+                />
+                <span style={{ position: "absolute", top: 8, left: 8 }}>
+                  <Badge tone="brand">{g.category}</Badge>
+                </span>
+                <button
+                  aria-label="삭제"
+                  onClick={() => deleteGallery(g.id)}
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    width: 28,
+                    height: 28,
+                    borderRadius: "999px",
+                    border: "none",
+                    background: "rgba(46,38,32,0.65)",
+                    color: "var(--paper)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Trash2 size={14} strokeWidth={2} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );

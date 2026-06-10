@@ -3,3 +3,6 @@ export const DESK_PATH = "/desk";
 
 export const SITE_NAME = "mellowbrow";
 export const INSTAGRAM_URL = "https://www.instagram.com/mellowbrow/";
+
+/** 갤러리 사진 분류 (데스크 업로드 + 공개 갤러리 필터 탭 공용) */
+export const GALLERY_CATEGORIES = ["자연눈썹", "콤보눈썹", "수지눈썹", "입술", "기타"] as const;

@@ -44,6 +44,21 @@ export interface ListFilter {
   fromDate?: string;
 }
 
+export interface GalleryItem {
+  id: string;
+  created_at: string;
+  category: string;
+  image_url: string;
+  storage_path: string | null;
+}
+
+export interface AddGalleryInput {
+  category: string;
+  fileName: string;
+  contentType: string;
+  data: ArrayBuffer;
+}
+
 export interface Database {
   /** 해당 날짜의 활성(취소 제외) 예약 점유 구간 목록 */
   activeSpans(date: string): Promise<Span[]>;
@@ -57,6 +72,10 @@ export interface Database {
   listReservations(filter: ListFilter): Promise<Reservation[]>;
   updateReservationStatus(id: string, status: ReservationStatus): Promise<Reservation | null>;
   setBlocked(date: string, slot: string, blocked: boolean): Promise<void>;
+  /** 갤러리 — 최신순 */
+  listGallery(): Promise<GalleryItem[]>;
+  addGalleryImage(input: AddGalleryInput): Promise<GalleryItem>;
+  deleteGalleryImage(id: string): Promise<boolean>;
 }
 
 /** 두 점유 구간 [aStart, aStart+aDur) / [bStart, bStart+bDur) 겹침 여부 */
@@ -202,6 +221,63 @@ class SupabaseDb implements Database {
       if (error) throw new Error(`setBlocked: ${error.message}`);
     }
   }
+
+  async listGallery(): Promise<GalleryItem[]> {
+    const { data, error } = await this.client
+      .from("gallery_items")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(60);
+    if (error) throw new Error(`listGallery: ${error.message}`);
+    return (data ?? []).map(normalizeGalleryRow);
+  }
+
+  async addGalleryImage(input: AddGalleryInput): Promise<GalleryItem> {
+    const ext = (input.fileName.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = `${crypto.randomUUID()}.${ext || "jpg"}`;
+    const { error: upErr } = await this.client.storage
+      .from("gallery")
+      .upload(path, input.data, { contentType: input.contentType });
+    if (upErr) throw new Error(`addGalleryImage(storage): ${upErr.message}`);
+
+    const { data: pub } = this.client.storage.from("gallery").getPublicUrl(path);
+    const { data, error } = await this.client
+      .from("gallery_items")
+      .insert({ category: input.category, image_url: pub.publicUrl, storage_path: path })
+      .select()
+      .single();
+    if (error) {
+      // 행 삽입 실패 시 고아 파일 정리
+      await this.client.storage.from("gallery").remove([path]);
+      throw new Error(`addGalleryImage: ${error.message}`);
+    }
+    return normalizeGalleryRow(data);
+  }
+
+  async deleteGalleryImage(id: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .from("gallery_items")
+      .delete()
+      .eq("id", id)
+      .select()
+      .maybeSingle();
+    if (error) throw new Error(`deleteGalleryImage: ${error.message}`);
+    if (!data) return false;
+    if (data.storage_path) {
+      await this.client.storage.from("gallery").remove([String(data.storage_path)]);
+    }
+    return true;
+  }
+}
+
+function normalizeGalleryRow(row: Record<string, unknown>): GalleryItem {
+  return {
+    id: String(row.id),
+    created_at: String(row.created_at),
+    category: String(row.category),
+    image_url: String(row.image_url),
+    storage_path: row.storage_path == null ? null : String(row.storage_path),
+  };
 }
 
 // Supabase date 컬럼은 'YYYY-MM-DD' 문자열로 오지만 방어적으로 자른다
@@ -225,12 +301,14 @@ function normalizeRow(row: Record<string, unknown>): Reservation {
 interface MemoryStore {
   reservations: Reservation[];
   blocks: { date: string; time_slot: string }[];
+  gallery: GalleryItem[];
   seq: number;
 }
 
 function memStore(): MemoryStore {
   const g = globalThis as unknown as { __mb_mem?: MemoryStore };
-  if (!g.__mb_mem) g.__mb_mem = { reservations: [], blocks: [], seq: 1 };
+  if (!g.__mb_mem) g.__mb_mem = { reservations: [], blocks: [], gallery: [], seq: 1 };
+  if (!g.__mb_mem.gallery) g.__mb_mem.gallery = [];
   return g.__mb_mem;
 }
 
@@ -315,6 +393,36 @@ class MemoryDb implements Database {
     const store = memStore();
     store.blocks = store.blocks.filter((b) => !(b.date === date && b.time_slot === slot));
     if (blocked) store.blocks.push({ date, time_slot: slot });
+  }
+
+  async listGallery(): Promise<GalleryItem[]> {
+    return [...memStore().gallery].reverse().slice(0, 60);
+  }
+
+  async addGalleryImage(input: AddGalleryInput): Promise<GalleryItem> {
+    // 메모리 모드: data URL로 저장 (로컬 데모 전용)
+    const bytes = new Uint8Array(input.data);
+    let bin = "";
+    const CHUNK = 8192;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+    }
+    const item: GalleryItem = {
+      id: `mem-g${memStore().seq++}`,
+      created_at: new Date().toISOString(),
+      category: input.category,
+      image_url: `data:${input.contentType};base64,${btoa(bin)}`,
+      storage_path: null,
+    };
+    memStore().gallery.push(item);
+    return item;
+  }
+
+  async deleteGalleryImage(id: string): Promise<boolean> {
+    const store = memStore();
+    const before = store.gallery.length;
+    store.gallery = store.gallery.filter((g) => g.id !== id);
+    return store.gallery.length < before;
   }
 }
 

@@ -43,6 +43,21 @@ create table if not exists blocked_slots (
   unique(date, time_slot)
 );
 
+-- 갤러리 (데스크에서 업로드하는 시술 사진)
+create table if not exists gallery_items (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  category text not null,               -- 자연눈썹 | 콤보눈썹 | 수지눈썹 | 입술 | 기타
+  image_url text not null,              -- Storage 공개 URL
+  storage_path text                     -- Storage 객체 경로 (삭제용)
+);
+
+-- 갤러리 이미지 저장용 공개 버킷
+insert into storage.buckets (id, name, public)
+values ('gallery', 'gallery', true)
+on conflict (id) do nothing;
+
 -- RLS: 기본 거부. 서버(service-role 키)만 접근하므로 공개 정책 없음.
 alter table reservations enable row level security;
 alter table blocked_slots enable row level security;
+alter table gallery_items enable row level security;

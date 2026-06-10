@@ -13,7 +13,7 @@
 | `/services` | 시술 안내 6종 + 가격 + FAQ |
 | `/gallery` | 전후 갤러리 (카테고리 필터) |
 | `/booking` | **예약 신청** — 날짜 선택 시 실시간으로 마감된 시간대 비활성화 |
-| `/desk` | **관리자 데스크** (비밀번호 보호) — 예약 확인/확정/취소, 날짜별 휴무(슬롯 차단) |
+| `/desk` | **관리자 데스크** (비밀번호 보호) — 예약 확인/확정/취소, 날짜별 휴무(슬롯 차단), **갤러리 사진 업로드/삭제** |
 
 > 관리자 경로를 바꾸려면 `app/desk` 폴더명과 [lib/constants.ts](lib/constants.ts)의 `DESK_PATH`, [middleware.ts](middleware.ts)의 `matcher`를 함께 수정하세요.
 
@@ -36,6 +36,12 @@ npm run dev
 - 환경변수 없이도 동작합니다 (in-memory 저장소, 서버 재시작 시 초기화 — 데모 전용)
 - 데스크 기본 비밀번호: `mellow` (운영에서는 반드시 `ADMIN_PASSWORD` 설정)
 - 실제 DB 연동: `.env.example`을 `.env.local`로 복사 후 Supabase 값 입력
+
+## 갤러리 관리
+
+- 데스크(`/desk`) 하단 "갤러리 관리"에서 시술 사진 업로드(분류 선택, 8MB 이하) → `/gallery`에 즉시 표시
+- 업로드한 사진이 하나도 없으면 갤러리는 기본(더미) 이미지로 폴백
+- 사진 파일은 Supabase Storage `gallery` 버킷에 저장 (schema.sql이 버킷까지 생성)
 
 ## Supabase 설정 (1회)
 
