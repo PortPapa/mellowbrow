@@ -1,0 +1,33 @@
+<!-- @dsCard group="Components" viewport="700x440" name="Marketing — ServiceCard · Accordion" subtitle="Service menu & FAQ building blocks" -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style> body { margin: 0; padding: 26px 30px; background: var(--surface-page); } </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { ServiceCard, Accordion } = window.MellowbrowDesignSystem_20fe7e;
+function Demo() {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 28, alignItems: "start" }}>
+      <ServiceCard titleKo="자연눈썹" titleEn="Natural" tag="시그니처"
+        description="결을 한 올씩 살린 가장 자연스러운 디자인." price="₩250,000" duration="약 2시간 · 리터치 포함" />
+      <Accordion items={[
+        { q: "시술은 얼마나 걸리나요?", a: "디자인 상담을 포함해 약 2시간 소요됩니다. 충분히 상의한 뒤 진행해요." },
+        { q: "리터치는 포함인가요?", a: "첫 시술 후 4~6주 이내 1회 리터치가 가격에 포함됩니다." },
+        { q: "예약은 어떻게 하나요?", a: "100% 예약제로 운영합니다. 홈페이지 또는 인스타그램 DM으로 신청해 주세요." },
+      ]} />
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

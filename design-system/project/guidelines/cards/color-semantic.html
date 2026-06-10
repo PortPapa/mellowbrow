@@ -1,0 +1,18 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Semantic feedback" subtitle="Quiet, warm status colors" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { margin: 0; padding: 24px 32px; background: var(--surface-page); display: flex; gap: 12px; font-family: var(--font-sans); }
+  .pill { flex:1; border-radius: var(--radius-md); padding: 12px 14px; font-size: 13px; font-weight: 600; display:flex; align-items:center; gap:8px; }
+  .dot { width: 9px; height: 9px; border-radius: 999px; }
+</style>
+</head>
+<body>
+  <div class="pill" style="background:var(--success-soft); color:#4F5C39"><span class="dot" style="background:var(--success)"></span>예약 완료 Success</div>
+  <div class="pill" style="background:var(--error-soft); color:#8E3C32"><span class="dot" style="background:var(--error)"></span>마감 Closed</div>
+  <div class="pill" style="background:var(--info-soft); color:#4C575C"><span class="dot" style="background:var(--info)"></span>안내 Info</div>
+</body>
+</html>

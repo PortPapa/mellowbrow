@@ -1,0 +1,29 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Text on surfaces" subtitle="Ink hierarchy on paper & on dark mocha" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { margin: 0; padding: 24px 32px; background: var(--surface-page); display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-family: var(--font-sans); }
+  .panel { border-radius: var(--radius-md); padding: 16px 18px; }
+  .light { background: var(--surface-card); border: 1px solid var(--border-default); }
+  .dark { background: var(--surface-dark); }
+  .l1 { font-size: 16px; font-weight: 600; }
+  .l2 { font-size: 14px; margin-top: 4px; }
+  .l3 { font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="panel light">
+    <div class="l1" style="color:var(--text-primary)">Primary ink</div>
+    <div class="l2" style="color:var(--text-secondary)">Secondary 보조 텍스트</div>
+    <div class="l3" style="color:var(--text-muted)">Muted · caption</div>
+  </div>
+  <div class="panel dark">
+    <div class="l1" style="color:var(--text-on-dark)">On dark surface</div>
+    <div class="l2" style="color:var(--mocha-300)">Muted on dark</div>
+    <div class="l3" style="color:var(--mocha-400)">Caption on dark</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!-- @dsCard group="Colors" viewport="700x170" name="Warm paper neutrals" subtitle="Backgrounds, surfaces & hairlines — never cold grey" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { margin: 0; padding: 26px 32px; background: var(--surface-page); }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .chip { border: 1px solid var(--border-default); border-radius: var(--radius-sm); height: 64px; }
+  .cap { font-family: var(--font-sans); font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
+  .cap small { display:block; color: var(--text-muted); font-size: 10px; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div><div class="chip" style="background:var(--paper)"></div><div class="cap">paper<small>#FBF7F1</small></div></div>
+    <div><div class="chip" style="background:var(--cream)"></div><div class="cap">cream<small>#F5EDE3</small></div></div>
+    <div><div class="chip" style="background:var(--linen)"></div><div class="cap">linen<small>#EFE5D8</small></div></div>
+    <div><div class="chip" style="background:var(--white)"></div><div class="cap">card<small>#FFFFFF</small></div></div>
+    <div><div class="chip" style="background:var(--line)"></div><div class="cap">line<small>#E7DAC9</small></div></div>
+  </div>
+</body>
+</html>

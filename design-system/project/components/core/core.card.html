@@ -1,0 +1,49 @@
+<!-- @dsCard group="Components" viewport="700x340" name="Core — Button · Badge · Card · Logo" subtitle="Primary primitives in the warm mocha system" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style> body { margin: 0; padding: 26px 30px; background: var(--surface-page); } </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { Button, Badge, Card, Logo } = window.MellowbrowDesignSystem_20fe7e;
+function Demo() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+        <Logo variant="full" size={26} />
+        <Logo variant="mono" size={38} />
+      </div>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <Button variant="primary">예약하기</Button>
+        <Button variant="secondary">서비스 보기</Button>
+        <Button variant="quiet">상담 문의</Button>
+        <Button variant="ghost" size="sm">자세히 →</Button>
+        <Button variant="primary" disabled>마감</Button>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Badge tone="brand">자연눈썹</Badge>
+        <Badge tone="neutral">콤보</Badge>
+        <Badge tone="accent" soft={false}>NEW</Badge>
+        <Badge tone="success">예약가능</Badge>
+        <Badge tone="error">마감</Badge>
+      </div>
+      <Card interactive style={{ maxWidth: 320 }}>
+        <Badge tone="brand">시그니처</Badge>
+        <h3 style={{ fontSize: 22, marginTop: 10 }}>자연눈썹 Natural</h3>
+        <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 6 }}>결을 한 올씩 살린 가장 자연스러운 디자인.</p>
+      </Card>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

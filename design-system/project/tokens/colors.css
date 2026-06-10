@@ -1,0 +1,79 @@
+/* ============================================================
+   Mellowbrow — Color tokens
+   Warm, mellow, skin-adjacent neutrals. Mocha browns carry the
+   brand; a soft blush adds the "beauty" warmth. Everything is
+   low-saturation and warm-biased — no cold greys, no pure black.
+   ============================================================ */
+:root {
+  /* --- Mocha: the brand brown scale (eyebrow ink) --- */
+  --mocha-50:  #FAF5EE;
+  --mocha-100: #F2E9DD;
+  --mocha-200: #E7D7C3;
+  --mocha-300: #D8C3A9;
+  --mocha-400: #C2A98C;
+  --mocha-500: #A98E72;
+  --mocha-600: #8A6F58;
+  --mocha-700: #6B5544;
+  --mocha-800: #4A3B30;
+  --mocha-900: #2E2620;
+
+  /* --- Warm paper neutrals (backgrounds & lines) --- */
+  --paper:     #FBF7F1;  /* default page */
+  --cream:     #F5EDE3;  /* sunken / alternating sections */
+  --linen:     #EFE5D8;  /* subtle fills */
+  --white:     #FFFFFF;  /* cards */
+  --line:      #E7DAC9;  /* hairline borders */
+  --line-soft: #F0E6D9;
+
+  /* --- Blush: soft beauty accent (lips / warmth) --- */
+  --blush-100: #F6E7E1;
+  --blush-300: #E8C9BE;
+  --blush-500: #D29F8E;
+  --blush-700: #B27866;
+
+  /* --- Ink (text) --- */
+  --ink-900: #2E2620;  /* primary text */
+  --ink-700: #5E5046;  /* secondary text */
+  --ink-500: #8C7B6C;  /* muted / captions */
+  --ink-300: #B6A593;  /* disabled / placeholder */
+
+  /* --- Semantic feedback (kept warm & quiet) --- */
+  --success: #7A8B5E;
+  --success-soft: #EEF0E0;
+  --error:   #B6564A;
+  --error-soft: #F6E2DE;
+  --info:    #6E7E86;
+  --info-soft: #E6ECEC;
+
+  /* ===========================================================
+     Semantic aliases — prefer these in components
+     =========================================================== */
+  --text-primary:    var(--ink-900);
+  --text-secondary:  var(--ink-700);
+  --text-muted:      var(--ink-500);
+  --text-placeholder:var(--ink-300);
+  --text-on-dark:    #F4ECE2;
+  --text-on-primary: #FBF7F1;
+
+  --surface-page:    var(--paper);
+  --surface-sunken:  var(--cream);
+  --surface-card:    var(--white);
+  --surface-fill:    var(--linen);
+  --surface-dark:    var(--mocha-900);
+  --surface-inverse: var(--mocha-800);
+
+  --border-default:  var(--line);
+  --border-soft:     var(--line-soft);
+  --border-strong:   var(--mocha-300);
+
+  --primary:         var(--mocha-700);
+  --primary-hover:   var(--mocha-800);
+  --primary-press:   var(--mocha-900);
+  --primary-soft:    var(--mocha-100);
+  --on-primary:      var(--text-on-primary);
+
+  --accent:          var(--blush-500);
+  --accent-soft:     var(--blush-100);
+
+  --focus-ring:      color-mix(in oklab, var(--mocha-600) 45%, transparent);
+}

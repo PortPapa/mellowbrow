@@ -1,0 +1,78 @@
+/* ============================================================
+   Mellowbrow — Webfonts
+   ------------------------------------------------------------
+   Display (Latin):  Cormorant Garamond — high-contrast, soft,
+                     editorial serif. Wordmark + large headlines.
+   Display (Korean): Gowun Batang — a gentle, "mellow" Myeongjo
+                     serif. Korean display + quiet headlines.
+   Text / UI:        Pretendard — the de-facto modern Korean UI
+                     sans. Covers Latin + Hangul. Body, UI, labels.
+
+   NOTE TO BRAND OWNER: These are tasteful substitutes chosen to
+   match the Instagram feel — Mellowbrow's exact fonts were not
+   provided. Swap in the real files if they differ.
+   ============================================================ */
+
+/* --- Pretendard (variable) — explicit @font-face so the binary
+       is declared locally rather than hidden behind a remote
+       stylesheet @import. --- */
+@font-face {
+  font-family: "Pretendard Variable";
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/woff2/PretendardVariable.woff2") format("woff2-variations");
+}
+
+/* --- Cormorant Garamond (Fontsource CDN, stable woff2 paths) --- */
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/cormorant-garamond@latest/latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/cormorant-garamond@latest/latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/cormorant-garamond@latest/latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/cormorant-garamond@latest/latin-400-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/cormorant-garamond@latest/latin-500-italic.woff2") format("woff2");
+}
+
+/* --- Gowun Batang (Fontsource CDN) --- */
+@font-face {
+  font-family: "Gowun Batang";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/gowun-batang@latest/korean-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Gowun Batang";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/gowun-batang@latest/korean-700-normal.woff2") format("woff2");
+}
