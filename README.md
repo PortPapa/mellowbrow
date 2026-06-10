@@ -67,6 +67,6 @@ npm run dev
 - [x] 로고 — 실제 로고(산세리프 "mellow brow")를 타이포로 재현 (`components/ui/Logo.tsx`; 이미지 파일 수령 시 교체 가능)
 - [x] 위치/영업시간/연락처 — 인스타그램 공개 정보 반영 (천호역 도보 5분, 11:00–20:00, 월요일 휴무, 카카오 mellow415)
 - [x] 휴무 — 매주 월요일은 예약 캘린더에서 자동 차단 (`lib/slots.ts`의 `isClosedDay`)
-- [ ] 사진 — 현재 웜 그라데이션 placeholder (`components/site/Photo.tsx`, `ServiceCard` `image` prop으로 교체)
+- [ ] 사진 — 현재 Pexels 무료 스톡 더미 (`public/photos/`). 실제 스튜디오 사진으로 같은 파일명으로 교체하면 끝
 - [ ] 예약 시간대 — 현재 11/13/15/17/19시 (`lib/slots.ts`의 `SLOTS`)
 - [ ] 후기 3건 + 히어로 통계(8년+/4.9/후기 320+) — 예시 문구 (`app/(site)/page.tsx`)

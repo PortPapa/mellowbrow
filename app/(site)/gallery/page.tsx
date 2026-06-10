@@ -8,15 +8,15 @@ import { Photo } from "@/components/site/Photo";
 
 const TABS = ["전체", "자연눈썹", "콤보눈썹", "수지눈썹", "입술"];
 
-const ITEMS: [string, "a" | "b" | "c" | "d"][] = [
-  ["자연눈썹", "a"],
-  ["콤보눈썹", "b"],
-  ["수지눈썹", "c"],
-  ["입술", "b"],
-  ["자연눈썹", "d"],
-  ["콤보눈썹", "a"],
-  ["수지눈썹", "c"],
-  ["자연눈썹", "b"],
+const ITEMS: [string, string][] = [
+  ["자연눈썹", "/photos/natural.jpg"],
+  ["콤보눈썹", "/photos/combo.jpg"],
+  ["수지눈썹", "/photos/suji.jpg"],
+  ["입술", "/photos/lips.jpg"],
+  ["자연눈썹", "/photos/hero.jpg"],
+  ["콤보눈썹", "/photos/gallery2.jpg"],
+  ["수지눈썹", "/photos/gallery1.jpg"],
+  ["자연눈썹", "/photos/retouch.jpg"],
 ];
 
 export default function GalleryPage() {
@@ -64,7 +64,7 @@ export default function GalleryPage() {
         <div className="grid-4" style={{ marginTop: 36 }}>
           {shown.map((it, i) => (
             <div key={`${it[0]}-${i}`} style={{ position: "relative" }}>
-              <Photo ratio="5 / 6" variant={it[1]} radius="var(--radius-lg)" />
+              <Photo ratio="5 / 6" src={it[1]} alt={`${it[0]} 시술 전후`} radius="var(--radius-lg)" />
               <div style={{ position: "absolute", top: 12, left: 12 }}>
                 <Badge tone="brand">{it[0]}</Badge>
               </div>

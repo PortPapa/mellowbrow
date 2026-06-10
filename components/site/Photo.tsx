@@ -1,18 +1,22 @@
 import type { CSSProperties } from "react";
 
-/** 실제 사진이 들어갈 자리의 웜 그라데이션 플레이스홀더.
- *  실사진 수령 시 <img>/next-image로 교체. */
+/** 사진 블록 — src가 있으면 이미지를, 없으면 웜 그라데이션 플레이스홀더를 렌더링.
+ *  현재 이미지는 Pexels 무료 스톡 더미 — 실제 스튜디오 사진 수령 시 교체. */
 export function Photo({
   ratio = "4 / 3",
   variant = "a",
   label,
   radius = "var(--radius-lg)",
+  src,
+  alt = "",
   style,
 }: {
   ratio?: string;
   variant?: "a" | "b" | "c" | "d";
   label?: string;
   radius?: string;
+  src?: string;
+  alt?: string;
   style?: CSSProperties;
 }) {
   const grads = {
@@ -32,7 +36,22 @@ export function Photo({
         ...style,
       }}
     >
-      {label && (
+      {src && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      )}
+      {!src && label && (
         <span
           style={{
             position: "absolute",

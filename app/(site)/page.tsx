@@ -73,7 +73,8 @@ export default function HomePage() {
               ratio="4 / 5"
               variant="b"
               radius="var(--radius-xl)"
-              label="hero · brow close-up"
+              src="/photos/hero.jpg"
+              alt="자연스러운 눈썹 클로즈업"
               style={{ boxShadow: "var(--shadow-lg)" }}
             />
             <div
@@ -106,7 +107,13 @@ export default function HomePage() {
       {/* PHILOSOPHY */}
       <Section bg="var(--surface-sunken)">
         <div className="split split-philosophy">
-          <Photo ratio="5 / 4" variant="c" radius="var(--radius-xl)" label="studio mood" />
+          <Photo
+            ratio="5 / 4"
+            variant="c"
+            radius="var(--radius-xl)"
+            src="/photos/studio.jpg"
+            alt="멜로우브로우 스튜디오"
+          />
           <div>
             <span className="mb-eyebrow">Our Philosophy</span>
             <h2 style={{ fontSize: "var(--fs-display-md)", marginTop: 16 }}>덜어내는 디자인</h2>
@@ -187,6 +194,7 @@ export default function HomePage() {
             description="결을 한 올씩 살린 가장 자연스러운 디자인."
             price="₩120,000"
             duration="현금가 · 리터치 미포함"
+            image="/photos/natural.jpg"
             href="/booking?service=자연눈썹"
           />
           <ServiceCard
@@ -195,6 +203,7 @@ export default function HomePage() {
             description="자연결 위에 음영을 더해 또렷하게."
             price="₩150,000"
             duration="현금가 · 리터치 미포함"
+            image="/photos/combo.jpg"
             href="/booking?service=콤보눈썹"
           />
           <ServiceCard
@@ -203,6 +212,7 @@ export default function HomePage() {
             description="은은한 음영으로 메이크업한 듯 풍성하게."
             price="₩170,000"
             duration="현금가 · 리터치 미포함"
+            image="/photos/suji.jpg"
             href="/booking?service=수지눈썹"
           />
         </div>
