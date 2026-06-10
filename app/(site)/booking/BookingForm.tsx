@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { SERVICES, MAX_DAYS_AHEAD, addDays, slotLabel, todayKST } from "@/lib/slots";
+import { SERVICES, slotLabel } from "@/lib/slots";
+import { Calendar } from "./Calendar";
 
 interface SlotInfo {
   value: string;
@@ -23,10 +24,10 @@ interface DoneInfo {
 }
 
 const INFO: [typeof Clock, string, string][] = [
-  [Clock, "영업 시간", "평일 11:00–20:00\n주말 예약 문의"],
-  [MapPin, "위치", "서울 강남구\n예약 확정 시 상세 주소 안내"],
+  [Clock, "영업 시간", "11:00–20:00\n매주 월요일 휴무"],
+  [MapPin, "위치", "천호역 도보 5분 (주차 가능)\n예약 확정 시 상세 주소 안내"],
   [CalendarCheck, "예약제", "100% 예약제 운영\n방문 전 꼭 예약해 주세요"],
-  [Instagram, "문의", "@mellowbrow DM"],
+  [Instagram, "문의", "@mellowbrow DM\n카카오톡 ID mellow415"],
 ];
 
 export function BookingForm({ initialService }: { initialService: string }) {
@@ -45,9 +46,7 @@ export function BookingForm({ initialService }: { initialService: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<DoneInfo | null>(null);
-
-  const today = todayKST();
-  const maxDate = addDays(today, MAX_DAYS_AHEAD);
+  const [calToken, setCalToken] = useState(0);
 
   const loadAvailability = useCallback(async (d: string) => {
     setLoadingSlots(true);
@@ -100,6 +99,7 @@ export function BookingForm({ initialService }: { initialService: string }) {
       if (res.status === 409) {
         setError(body.error ?? "방금 마감된 시간이에요. 다른 시간을 선택해 주세요.");
         setSlot("");
+        setCalToken((t) => t + 1);
         void loadAvailability(date);
       } else {
         setError(body.error ?? "신청 처리 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.");
@@ -157,6 +157,7 @@ export function BookingForm({ initialService }: { initialService: string }) {
             onClick={() => {
               setDone(null);
               setSlot("");
+              setCalToken((t) => t + 1);
               if (date) void loadAvailability(date);
             }}
           >
@@ -194,21 +195,29 @@ export function BookingForm({ initialService }: { initialService: string }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
-            <Select
-              label="시술 선택"
-              placeholder="메뉴를 골라주세요"
-              options={[...SERVICES]}
-              value={service}
-              onChange={(e) => setService(e.target.value)}
-            />
-            <Input
-              label="희망 날짜"
-              type="date"
-              min={today}
-              max={maxDate}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <div className="span-2">
+              <Select
+                label="시술 선택"
+                placeholder="메뉴를 골라주세요"
+                options={[...SERVICES]}
+                value={service}
+                onChange={(e) => setService(e.target.value)}
+              />
+            </div>
+            <div className="span-2">
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 10,
+                }}
+              >
+                희망 날짜
+              </span>
+              <Calendar value={date} onSelect={setDate} reloadToken={calToken} />
+            </div>
             <div className="span-2">
               <span
                 style={{

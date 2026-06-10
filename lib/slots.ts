@@ -17,10 +17,13 @@ export function slotLabel(value: string): string {
 export const SERVICES = [
   "자연눈썹",
   "콤보눈썹",
-  "섀도우눈썹",
-  "남자눈썹",
-  "입술 (물광)",
-  "리터치",
+  "수지눈썹",
+  "눈썹 추가 리터치",
+  "아이라인",
+  "입술 틴트립",
+  "SMP 두피문신",
+  "미인점",
+  "블랙틴트 케라틴펌",
 ] as const;
 
 /** 오늘부터 며칠 뒤까지 예약을 받을지 */
@@ -69,6 +72,12 @@ export function isBookableDate(dateStr: string): boolean {
   if (!isValidDateStr(dateStr)) return false;
   const today = todayKST();
   return dateStr >= today && dateStr <= addDays(today, MAX_DAYS_AHEAD);
+}
+
+/** 고정 휴무일 — 매주 월요일 (인스타그램 공지 기준) */
+export function isClosedDay(dateStr: string): boolean {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 1;
 }
 
 /** 당일 예약일 때 이미 지난 시간대인지 */

@@ -43,11 +43,11 @@ export function Footer() {
             찾아오시는 길
           </span>
           <span style={{ fontSize: 14, color: "var(--mocha-300)", lineHeight: 1.7 }}>
-            서울 강남구 · 예약 시 안내
+            천호역 도보 5분 (주차 가능)
             <br />
-            평일 11:00–20:00
+            11:00–20:00 · 월요일 휴무
             <br />
-            주말 예약 문의
+            카카오톡 ID mellow415
           </span>
           <a
             href={INSTAGRAM_URL}

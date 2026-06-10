@@ -6,16 +6,16 @@ import { Button } from "@/components/ui/Button";
 import { Section } from "@/components/site/Section";
 import { Photo } from "@/components/site/Photo";
 
-const TABS = ["전체", "자연눈썹", "콤보", "섀도우", "입술"];
+const TABS = ["전체", "자연눈썹", "콤보눈썹", "수지눈썹", "입술"];
 
 const ITEMS: [string, "a" | "b" | "c" | "d"][] = [
   ["자연눈썹", "a"],
-  ["콤보", "b"],
-  ["섀도우", "c"],
+  ["콤보눈썹", "b"],
+  ["수지눈썹", "c"],
   ["입술", "b"],
   ["자연눈썹", "d"],
-  ["콤보", "a"],
-  ["섀도우", "c"],
+  ["콤보눈썹", "a"],
+  ["수지눈썹", "c"],
   ["자연눈썹", "b"],
 ];
 

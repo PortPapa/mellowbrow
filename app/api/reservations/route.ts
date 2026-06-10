@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
-import { SERVICES, SLOT_VALUES, isBookableDate, isSlotInPast } from "@/lib/slots";
+import { SERVICES, SLOT_VALUES, isBookableDate, isClosedDay, isSlotInPast } from "@/lib/slots";
 
 const schema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -32,6 +32,9 @@ export async function POST(req: NextRequest) {
   const input = parsed.data;
   if (!isBookableDate(input.date)) {
     return NextResponse.json({ error: "예약 가능한 날짜가 아니에요." }, { status: 400 });
+  }
+  if (isClosedDay(input.date)) {
+    return NextResponse.json({ error: "월요일은 정기 휴무예요." }, { status: 400 });
   }
   if (isSlotInPast(input.date, input.time_slot)) {
     return NextResponse.json({ error: "이미 지난 시간대예요." }, { status: 400 });

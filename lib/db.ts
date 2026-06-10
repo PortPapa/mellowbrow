@@ -40,6 +40,10 @@ export interface Database {
   takenSlots(date: string): Promise<string[]>;
   /** 해당 날짜에 차단(휴무)된 슬롯 목록 */
   blockedSlots(date: string): Promise<string[]>;
+  /** 날짜 범위의 점유 슬롯 — { 'YYYY-MM-DD': ['11:00', ...] } */
+  takenSlotsInRange(from: string, to: string): Promise<Record<string, string[]>>;
+  /** 날짜 범위의 차단 슬롯 — { 'YYYY-MM-DD': ['11:00', ...] } */
+  blockedSlotsInRange(from: string, to: string): Promise<Record<string, string[]>>;
   createReservation(input: CreateReservationInput): Promise<CreateResult>;
   listReservations(filter: ListFilter): Promise<Reservation[]>;
   updateReservationStatus(id: string, status: ReservationStatus): Promise<Reservation | null>;
@@ -74,6 +78,27 @@ class SupabaseDb implements Database {
       .eq("date", date);
     if (error) throw new Error(`blockedSlots: ${error.message}`);
     return (data ?? []).map((r) => r.time_slot);
+  }
+
+  async takenSlotsInRange(from: string, to: string): Promise<Record<string, string[]>> {
+    const { data, error } = await this.client
+      .from("reservations")
+      .select("date, time_slot")
+      .gte("date", from)
+      .lte("date", to)
+      .neq("status", "cancelled");
+    if (error) throw new Error(`takenSlotsInRange: ${error.message}`);
+    return groupByDate(data ?? []);
+  }
+
+  async blockedSlotsInRange(from: string, to: string): Promise<Record<string, string[]>> {
+    const { data, error } = await this.client
+      .from("blocked_slots")
+      .select("date, time_slot")
+      .gte("date", from)
+      .lte("date", to);
+    if (error) throw new Error(`blockedSlotsInRange: ${error.message}`);
+    return groupByDate(data ?? []);
   }
 
   async createReservation(input: CreateReservationInput): Promise<CreateResult> {
@@ -142,6 +167,15 @@ class SupabaseDb implements Database {
   }
 }
 
+function groupByDate(rows: { date: unknown; time_slot: unknown }[]): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  for (const r of rows) {
+    const d = String(r.date).slice(0, 10);
+    (map[d] ??= []).push(String(r.time_slot));
+  }
+  return map;
+}
+
 // Supabase date 컬럼은 'YYYY-MM-DD' 문자열로 오지만 방어적으로 자른다
 function normalizeRow(row: Record<string, unknown>): Reservation {
   return {
@@ -182,6 +216,26 @@ class MemoryDb implements Database {
     return memStore()
       .blocks.filter((b) => b.date === date)
       .map((b) => b.time_slot);
+  }
+
+  async takenSlotsInRange(from: string, to: string): Promise<Record<string, string[]>> {
+    const map: Record<string, string[]> = {};
+    for (const r of memStore().reservations) {
+      if (r.date >= from && r.date <= to && r.status !== "cancelled") {
+        (map[r.date] ??= []).push(r.time_slot);
+      }
+    }
+    return map;
+  }
+
+  async blockedSlotsInRange(from: string, to: string): Promise<Record<string, string[]>> {
+    const map: Record<string, string[]> = {};
+    for (const b of memStore().blocks) {
+      if (b.date >= from && b.date <= to) {
+        (map[b.date] ??= []).push(b.time_slot);
+      }
+    }
+    return map;
   }
 
   async createReservation(input: CreateReservationInput): Promise<CreateResult> {

@@ -61,11 +61,12 @@ npm run dev
 > 로컬에서 `npm run preview`/`deploy`가 실패하면 WSL을 사용하세요.
 > **GitHub → Cloudflare 자동 배포는 Linux CI에서 빌드되므로 영향이 없습니다.**
 
-## 오픈 전 교체할 것 (디자인 번들의 플레이스홀더)
+## 오픈 전 교체/확인할 것
 
+- [x] 시술 메뉴/가격 — 실제 가격표 반영 완료 (`app/(site)/services/page.tsx`, `lib/slots.ts`)
+- [x] 로고 — 실제 로고(산세리프 "mellow brow")를 타이포로 재현 (`components/ui/Logo.tsx`; 이미지 파일 수령 시 교체 가능)
+- [x] 위치/영업시간/연락처 — 인스타그램 공개 정보 반영 (천호역 도보 5분, 11:00–20:00, 월요일 휴무, 카카오 mellow415)
+- [x] 휴무 — 매주 월요일은 예약 캘린더에서 자동 차단 (`lib/slots.ts`의 `isClosedDay`)
 - [ ] 사진 — 현재 웜 그라데이션 placeholder (`components/site/Photo.tsx`, `ServiceCard` `image` prop으로 교체)
-- [ ] 로고 — 현재 타이포 워드마크 (`components/ui/Logo.tsx`)
-- [ ] 시술 메뉴/가격/소요시간 — 예시 값 (`app/(site)/services/page.tsx`, 홈, `lib/slots.ts`의 `SERVICES`)
-- [ ] 위치/영업시간/연락처 — 예시 값 (Footer, 예약 페이지 사이드바)
 - [ ] 예약 시간대 — 현재 11/13/15/17/19시 (`lib/slots.ts`의 `SLOTS`)
-- [ ] 후기 3건 — 예시 문구 (`app/(site)/page.tsx`)
+- [ ] 후기 3건 + 히어로 통계(8년+/4.9/후기 320+) — 예시 문구 (`app/(site)/page.tsx`)

@@ -4,14 +4,9 @@
    + component/layout classes & responsive rules for production.
    ============================================================ */
 
-/* ---------- Webfonts (design-system/tokens/fonts.css) ---------- */
-@font-face {
-  font-family: "Pretendard Variable";
-  font-weight: 45 920;
-  font-style: normal;
-  font-display: swap;
-  src: url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/woff2/PretendardVariable.woff2") format("woff2-variations");
-}
+/* ---------- Webfonts ---------- */
+/* Pretendard Variable — 공식 동적 서브셋(한글 글리프를 쪼개 필요한 만큼만 로드) */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
 @font-face {
   font-family: "Cormorant Garamond";
   font-weight: 400;
@@ -507,6 +502,88 @@ button { font-family: inherit; }
   color: var(--text-placeholder);
   background: var(--surface-fill);
   text-decoration: line-through;
+}
+
+/* ---------- Booking calendar ---------- */
+.cal {
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.cal-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.cal-nav:hover:not(:disabled) { background: var(--mocha-50); }
+.cal-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+.cal-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.cal-week .is-sun { color: var(--blush-700); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 46px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  padding: 4px 0;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.cal-day { font-size: 13.5px; font-weight: 500; color: var(--text-primary); line-height: 1; }
+.cal-cell:hover:not(:disabled):not(.is-selected) { background: var(--mocha-50); }
+.cal-cell.is-today { border-color: var(--border-strong); }
+.cal-cell.is-selected { background: var(--primary); }
+.cal-cell.is-selected .cal-day { color: var(--on-primary); }
+.cal-cell.is-selected .cal-dots i { background: var(--paper); }
+.cal-cell:disabled { cursor: default; }
+.cal-cell.is-out .cal-day,
+.cal-cell.is-full .cal-day { color: var(--text-placeholder); }
+.cal-dots { display: flex; gap: 2.5px; height: 4px; }
+.cal-dots i { width: 4px; height: 4px; border-radius: 999px; background: var(--mocha-400); }
+.cal-full { font-size: 9.5px; font-weight: 600; color: var(--blush-700); letter-spacing: 0.04em; line-height: 1; }
+.cal-closed { font-size: 9.5px; font-weight: 600; color: var(--text-placeholder); letter-spacing: 0.04em; line-height: 1; }
+.cal-legend {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.cal-legend .dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--mocha-400);
+  margin-right: 4px;
+  vertical-align: middle;
 }
 
 /* ---------- Filter pills (gallery) ---------- */

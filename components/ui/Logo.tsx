@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-/** mellowbrow 타이포 워드마크 — 실제 로고 수령 시 교체 예정 */
+/** mellow brow 워드마크 — 실제 로고(클린 산세리프 소문자)를 타이포로 재현 */
 export function Logo({
   variant = "full",
   size = 28,
@@ -23,8 +23,8 @@ export function Logo({
           borderRadius: "999px",
           background: "var(--primary)",
           color: "var(--paper)",
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
+          fontFamily: "var(--font-sans)",
+          fontWeight: 700,
           fontSize: size * 0.56,
           display: "inline-flex",
           alignItems: "center",
@@ -49,15 +49,15 @@ export function Logo({
     >
       <span
         style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: 500,
-          fontSize: size,
-          letterSpacing: "0.01em",
+          fontFamily: "var(--font-sans)",
+          fontWeight: 700,
+          fontSize: size * 0.92,
+          letterSpacing: "-0.01em",
           color,
+          whiteSpace: "nowrap",
         }}
       >
-        mellow
-        <span style={{ fontStyle: "italic", color: "var(--mocha-600)" }}>brow</span>
+        mellow brow
       </span>
       {(tagline || variant === "stacked") && (
         <span

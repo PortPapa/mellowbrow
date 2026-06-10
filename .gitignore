@@ -19,3 +19,6 @@ next-env.d.ts
 .DS_Store
 *.tsbuildinfo
 /.omc/
+
+# playwright artifacts
+/.playwright-mcp/

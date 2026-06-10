@@ -118,7 +118,7 @@ export default function HomePage() {
                 color: "var(--text-secondary)",
               }}
             >
-              멜로브로우는 &lsquo;눈썹을 그린 듯 안 그린 듯&rsquo; 자연스러움을 가장 중요하게
+              멜로우브로우는 &lsquo;눈썹을 그린 듯 안 그린 듯&rsquo; 자연스러움을 가장 중요하게
               생각해요. 유행을 따르기보다 얼굴의 균형을 먼저 보고, 한 올 한 올 결을 살려 또렷하지만
               부담스럽지 않은 눈썹을 완성합니다.
             </p>
@@ -136,7 +136,7 @@ export default function HomePage() {
               {[
                 "충분한 상담 후 디자인을 함께 결정해요",
                 "피부 톤에 맞춘 색소 조색",
-                "첫 시술 후 리터치 1회 포함",
+                "눈썹부터 아이라인 · 입술 · SMP까지",
               ].map((t) => (
                 <li
                   key={t}
@@ -185,25 +185,25 @@ export default function HomePage() {
             titleEn="Natural"
             tag="시그니처"
             description="결을 한 올씩 살린 가장 자연스러운 디자인."
-            price="₩250,000"
-            duration="약 2시간"
+            price="₩120,000"
+            duration="현금가 · 리터치 미포함"
             href="/booking?service=자연눈썹"
           />
           <ServiceCard
             titleKo="콤보눈썹"
             titleEn="Combo"
-            description="자연결 + 음영으로 또렷하게 채운 스타일."
-            price="₩290,000"
-            duration="약 2시간"
+            description="자연결 위에 음영을 더해 또렷하게."
+            price="₩150,000"
+            duration="현금가 · 리터치 미포함"
             href="/booking?service=콤보눈썹"
           />
           <ServiceCard
-            titleKo="섀도우눈썹"
-            titleEn="Shadow"
-            description="화장한 듯 은은한 그라데이션 눈썹."
-            price="₩270,000"
-            duration="약 2시간"
-            href="/booking?service=섀도우눈썹"
+            titleKo="수지눈썹"
+            titleEn="Suji"
+            description="은은한 음영으로 메이크업한 듯 풍성하게."
+            price="₩170,000"
+            duration="현금가 · 리터치 미포함"
+            href="/booking?service=수지눈썹"
           />
         </div>
       </Section>
@@ -226,7 +226,7 @@ export default function HomePage() {
             ],
             [
               "“처음 눈썹문신이라 걱정했는데 시술 내내 편안했어요. 리터치까지 받고 완전 만족합니다.”",
-              "박OO · 섀도우눈썹",
+              "박OO · 수지눈썹",
             ],
           ].map(([quote, who]) => (
             <Card key={who} elevation="sm">
@@ -271,7 +271,7 @@ export default function HomePage() {
               color: "var(--text-on-dark)",
             }}
           >
-            오늘의 눈썹, 멜로브로우에서
+            오늘의 눈썹, 멜로우브로우에서
           </h2>
           <p
             style={{
