@@ -526,7 +526,28 @@ export function BookingForm({ initialService }: { initialService: string }) {
                 </p>
               )}
             </div>
-            <Checkbox checked={agree} onChange={setAgree} label="개인정보 수집·이용에 동의합니다" />
+            <Checkbox
+              checked={agree}
+              onChange={setAgree}
+              label={
+                <>
+                  <a
+                    href="/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      textDecoration: "underline",
+                      textUnderlineOffset: 3,
+                      color: "var(--mocha-600)",
+                    }}
+                  >
+                    개인정보 수집·이용
+                  </a>
+                  에 동의합니다
+                </>
+              }
+            />
             {error && (
               <p
                 style={{

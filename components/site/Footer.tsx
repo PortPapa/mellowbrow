@@ -66,7 +66,15 @@ export function Footer() {
           </a>
         </div>
       </div>
-      <div className="footer-bottom">© 2026 mellowbrow. All rights reserved.</div>
+      <div
+        className="footer-bottom"
+        style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}
+      >
+        <span>© 2026 mellowbrow. All rights reserved.</span>
+        <Link href="/privacy" style={{ color: "var(--mocha-300)" }}>
+          개인정보처리방침
+        </Link>
+      </div>
     </footer>
   );
 }
