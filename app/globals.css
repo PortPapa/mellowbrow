@@ -787,11 +787,13 @@ button { font-family: inherit; }
   position: absolute;
   inset: 0;
   z-index: 1;
-  opacity: 0;
-  transition: opacity var(--dur-slow) var(--ease-out);
+  /* 좌→우 와이프: 애프터가 왼쪽부터 스르륵 덮으며 나타나고, 떼면 오른쪽부터 걷힘 */
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--dur-slow) var(--ease-in-out);
+  will-change: clip-path;
 }
 .ba-card:hover .ba-after,
-.ba-card.is-after .ba-after { opacity: 1; }
+.ba-card.is-after .ba-after { clip-path: inset(0 0 0 0); }
 .ba-chip {
   position: absolute;
   bottom: 10px;
