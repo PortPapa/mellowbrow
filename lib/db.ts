@@ -15,6 +15,7 @@ export interface Reservation {
   name: string;
   phone: string;
   memo: string | null;
+  has_residue: boolean; // 기존 반영구 잔흔 여부 — true면 사진 상담 필요
   status: ReservationStatus;
 }
 
@@ -32,6 +33,7 @@ export interface CreateReservationInput {
   name: string;
   phone: string;
   memo?: string;
+  has_residue?: boolean;
 }
 
 export type CreateResult =
@@ -172,6 +174,7 @@ class SupabaseDb implements Database {
         name: input.name,
         phone: input.phone,
         memo: input.memo ?? null,
+        has_residue: input.has_residue ?? false,
         status: "pending",
       })
       .select()
@@ -348,6 +351,7 @@ function normalizeRow(row: Record<string, unknown>): Reservation {
     name: String(row.name),
     phone: String(row.phone),
     memo: row.memo == null ? null : String(row.memo),
+    has_residue: Boolean(row.has_residue),
     status: row.status as ReservationStatus,
   };
 }
@@ -435,6 +439,7 @@ class MemoryDb implements Database {
       name: input.name,
       phone: input.phone,
       memo: input.memo ?? null,
+      has_residue: input.has_residue ?? false,
       status: "pending",
     };
     store.reservations.push(reservation);

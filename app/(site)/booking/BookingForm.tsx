@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CalendarCheck, Check, Clock, Instagram, MapPin } from "lucide-react";
+import { Accordion } from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { KAKAO_OPENCHAT_URL } from "@/lib/constants";
 import { CATALOG, durationLabel, getService } from "@/lib/catalog";
 import { SLOT_HOURS, slotHour, slotLabel } from "@/lib/slots";
 import { Calendar } from "./Calendar";
@@ -22,7 +24,32 @@ interface DoneInfo {
   time_slot: string;
   service: string;
   name: string;
+  hasResidue: boolean;
 }
+
+/** 인스타그램 예약 안내 원문 기반 — 예약 전 안내 아코디언 */
+const BOOKING_GUIDE = [
+  {
+    q: "방문 전 숙지사항",
+    a: "방문 전날은 충분한 수면을 취하시고 음주는 자제해 주세요. 통증 없는 편안한 반영구 시술을 위해 꼭 지켜주시면 좋아요.",
+  },
+  {
+    q: "잔흔이 남아있는 경우",
+    a: "기존 반영구 흔적(잔흔)이 있다면 커버 가능 여부 상담이 꼭 필요해요. 일반 카메라로(보정 어플 X) 정면에서 양쪽 눈썹이 모두 보이게 찍은 사진을 카카오톡으로 보내주세요.",
+  },
+  {
+    q: "디자인 상담",
+    a: "눈썹은 최대한 다듬지 말고 방문해 주세요 — 디자인에 맞춰 다듬어드려요. 사람마다 얼굴 골격과 근육 사용량이 달라 좌우가 완벽히 대칭인 분은 드물어요. 1mm의 오차도 허용되지 않는, 대칭에 아주 민감하신 고객님은 정중히 사양하고 있어요.",
+  },
+  {
+    q: "시술 소요시간",
+    a: "1:1 맞춤 상담부터 디자인·시술·마무리까지 약 1시간 30분 정도 걸려요. 처음 방문이시라면 넉넉히 2시간 예상하고 와주세요. 리터치는 1시간 내외예요.",
+  },
+  {
+    q: "리터치 안내",
+    a: "시술 비용은 리터치 미포함 가격이에요. 탈각이 진행되며 흐려지는 부분은 추가 리터치로 완성되며, 현재 상태가 마음에 드시면 받지 않으셔도 돼요. 리터치는 신규 2개월 이내·재방문 유지터치 3개월 이내 방문 시 가능하고, 기간이 지나면 정상가가 적용돼요. 눈썹 리터치는 멜로우 기존 고객님께 제공되는 서비스로, 타 샵 잔흔 리터칭은 어려우며 신규 비용이 발생해요.",
+  },
+];
 
 const INFO: [typeof Clock, string, string][] = [
   [Clock, "영업 시간", "11:00–20:00\n매주 월요일 휴무"],
@@ -47,6 +74,7 @@ export function BookingForm({ initialService }: { initialService: string }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [memo, setMemo] = useState("");
+  const [hasResidue, setHasResidue] = useState(false);
   const [agree, setAgree] = useState(false);
 
   const [slots, setSlots] = useState<SlotInfo[] | null>(null);
@@ -123,10 +151,11 @@ export function BookingForm({ initialService }: { initialService: string }) {
           name: name.trim(),
           phone: phone.trim(),
           memo: memo.trim() || undefined,
+          has_residue: hasResidue,
         }),
       });
       if (res.status === 201) {
-        setDone({ date, time_slot: slot, service, name: name.trim() });
+        setDone({ date, time_slot: slot, service, name: name.trim(), hasResidue });
         refresh();
         return;
       }
@@ -152,6 +181,7 @@ export function BookingForm({ initialService }: { initialService: string }) {
       setName("");
       setPhone("");
       setMemo("");
+      setHasResidue(false);
       setAgree(false);
     }
   }
@@ -256,6 +286,15 @@ export function BookingForm({ initialService }: { initialService: string }) {
             ))}
           </ul>
         </Card>
+
+        {/* ④ 예약 전 안내 */}
+        <div>
+          <span className="mb-eyebrow">Notice</span>
+          <h2 style={{ fontSize: 22, marginTop: 8 }}>예약 전 꼭 읽어주세요</h2>
+          <div style={{ marginTop: 4 }}>
+            <Accordion items={BOOKING_GUIDE} defaultOpen={-1} />
+          </div>
+        </div>
       </div>
 
       {/* 신청 모달 */}
@@ -287,7 +326,90 @@ export function BookingForm({ initialService }: { initialService: string }) {
               <br />
               확인 후 남겨주신 연락처로 예약 확정을 안내드릴게요.
             </p>
-            <div style={{ marginTop: 26 }}>
+
+            {/* 방문 전 안내 */}
+            <div
+              style={{
+                textAlign: "left",
+                marginTop: 22,
+                background: "var(--surface-sunken)",
+                borderRadius: "var(--radius-md)",
+                padding: "16px 18px",
+              }}
+            >
+              <span className="mb-eyebrow">방문 전 안내</span>
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: "10px 0 0",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {[
+                  "전날은 충분한 수면을, 음주는 자제해 주세요",
+                  "눈썹은 다듬지 말고 와주세요 — 디자인에 맞춰 다듬어드려요",
+                  "처음 방문이시면 넉넉히 2시간 잡아주세요",
+                ].map((t) => (
+                  <li
+                    key={t}
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      fontSize: 13.5,
+                      lineHeight: 1.55,
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    <span style={{ color: "var(--mocha-600)", flexShrink: 0, marginTop: 2 }}>
+                      <Check size={14} strokeWidth={2.5} />
+                    </span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* 잔흔 사진 상담 안내 */}
+            {done.hasResidue && (
+              <div
+                style={{
+                  textAlign: "left",
+                  marginTop: 12,
+                  background: "var(--accent-soft)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "16px 18px",
+                }}
+              >
+                <b style={{ fontSize: 14, color: "var(--blush-700)" }}>
+                  잔흔 커버 상담이 필요해요
+                </b>
+                <p
+                  style={{
+                    marginTop: 6,
+                    fontSize: 13,
+                    lineHeight: 1.65,
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  일반 카메라로(보정 어플 X) <b>정면에서 양쪽 눈썹이 모두 보이게</b> 찍은 사진을
+                  보내주시면 커버 가능 여부를 확인해 드릴게요.
+                </p>
+                <a
+                  className="btn btn-primary btn-sm"
+                  style={{ marginTop: 12 }}
+                  href={KAKAO_OPENCHAT_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  카카오톡으로 사진 보내기
+                </a>
+              </div>
+            )}
+
+            <div style={{ marginTop: 22 }}>
               <Button full onClick={closeModal}>
                 확인
               </Button>
@@ -380,6 +502,29 @@ export function BookingForm({ initialService }: { initialService: string }) {
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
               />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <Checkbox
+                checked={hasResidue}
+                onChange={setHasResidue}
+                label="기존 반영구 흔적(잔흔)이 있어요"
+              />
+              {hasResidue && (
+                <p
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.65,
+                    color: "var(--blush-700)",
+                    background: "var(--accent-soft)",
+                    padding: "10px 14px",
+                    borderRadius: "var(--radius-md)",
+                  }}
+                >
+                  잔흔이 있으면 커버 가능 여부 상담이 꼭 필요해요. 신청 후 일반 카메라로(보정
+                  어플 X) <b>정면에서 양쪽 눈썹이 모두 보이게</b> 찍은 사진을 카카오톡으로
+                  보내주세요.
+                </p>
+              )}
             </div>
             <Checkbox checked={agree} onChange={setAgree} label="개인정보 수집·이용에 동의합니다" />
             {error && (

@@ -4,6 +4,8 @@
 --
 -- ⚠️ v1 스키마로 만든 테이블이 이미 있다면 먼저 삭제 후 실행:
 --    drop table if exists reservations; drop table if exists blocked_slots;
+-- ⚠️ v2 테이블에 잔흔 컬럼만 추가하려면:
+--    alter table reservations add column if not exists has_residue boolean not null default false;
 -- =====================================================================
 
 -- 점유 구간 겹침 방지(exclusion constraint)에 필요
@@ -21,6 +23,7 @@ create table if not exists reservations (
   name text not null,
   phone text not null,
   memo text,
+  has_residue boolean not null default false, -- 기존 반영구 잔흔 여부 (true면 사진 상담 필요)
   status text not null default 'pending'
     check (status in ('pending', 'confirmed', 'done', 'cancelled')),
 

@@ -14,6 +14,7 @@ const schema = z.object({
     .trim()
     .regex(/^0\d{1,2}-?\d{3,4}-?\d{4}$/, "연락처 형식을 확인해 주세요."),
   memo: z.string().trim().max(500).optional(),
+  has_residue: z.boolean().optional().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
       name: input.name,
       phone: input.phone,
       memo: input.memo,
+      has_residue: input.has_residue,
     });
     if (!result.ok) {
       return NextResponse.json(

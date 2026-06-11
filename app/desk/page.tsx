@@ -191,6 +191,7 @@ export default function DeskPage() {
         <div style={{ minWidth: 220 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+            {r.has_residue && <Badge tone="accent">잔흔</Badge>}
             <b style={{ fontSize: 15 }}>{r.name}</b>
             <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
               {showDate && `${shortDate(r.date)} (${weekdayOf(r.date)}) · `}
@@ -365,6 +366,7 @@ export default function DeskPage() {
                           <Badge tone={STATUS_TONE[entry.r.status]}>
                             {STATUS_LABEL[entry.r.status]}
                           </Badge>{" "}
+                          {entry.r.has_residue && <Badge tone="accent">잔흔</Badge>}{" "}
                           {entry.r.name} · {entry.r.service} · {durationLabel(entry.r.duration_hours)}
                         </span>
                       ) : (
