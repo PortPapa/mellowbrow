@@ -102,7 +102,7 @@ export default async function HomePage() {
             >
               <div style={{ display: "flex", gap: 2, color: "var(--blush-500)" }}>
                 {[0, 1, 2, 3, 4].map((i) => (
-                  <Star key={i} size={15} strokeWidth={2} />
+                  <Star key={i} size={15} strokeWidth={0} fill="currentColor" />
                 ))}
               </div>
               <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
@@ -236,7 +236,7 @@ export default async function HomePage() {
             <Card key={who} elevation="sm">
               <div style={{ display: "flex", gap: 2, color: "var(--blush-500)", marginBottom: 12 }}>
                 {[0, 1, 2, 3, 4].map((i) => (
-                  <Star key={i} size={14} strokeWidth={2} />
+                  <Star key={i} size={14} strokeWidth={0} fill="currentColor" />
                 ))}
               </div>
               <p
