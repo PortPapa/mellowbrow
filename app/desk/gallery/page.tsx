@@ -10,7 +10,8 @@ import type { GalleryItem } from "@/lib/db";
 
 export default function DeskGalleryPage() {
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
-  const [upFile, setUpFile] = useState<File | null>(null);
+  const [beforeFile, setBeforeFile] = useState<File | null>(null);
+  const [afterFile, setAfterFile] = useState<File | null>(null);
   const [upCategory, setUpCategory] = useState<string>(GALLERY_CATEGORIES[0]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -30,12 +31,13 @@ export default function DeskGalleryPage() {
   }, [load]);
 
   async function upload() {
-    if (!upFile || uploading) return;
+    if (!beforeFile || uploading) return;
     setUploading(true);
     setError("");
     try {
       const form = new FormData();
-      form.append("file", upFile);
+      form.append("before", beforeFile);
+      if (afterFile) form.append("after", afterFile);
       form.append("category", upCategory);
       const res = await fetch(`/api${DESK_PATH}/gallery`, { method: "POST", body: form });
       if (!res.ok) {
@@ -43,7 +45,8 @@ export default function DeskGalleryPage() {
         setError(body.error ?? "업로드에 실패했어요.");
         return;
       }
-      setUpFile(null);
+      setBeforeFile(null);
+      setAfterFile(null);
       void load();
     } catch {
       setError("네트워크 오류가 발생했어요.");
@@ -67,10 +70,11 @@ export default function DeskGalleryPage() {
           <ImagePlus size={18} strokeWidth={1.75} /> 갤러리 관리
         </h3>
         <p style={{ marginTop: 6, fontSize: 13, color: "var(--text-muted)" }}>
-          시술 사진을 올리면 홈페이지 갤러리에 바로 표시돼요. (이미지 8MB 이하)
+          비포·애프터 사진을 함께 올리면 갤러리에서 마우스를 올렸을 때 애프터로 부드럽게
+          전환돼요. 애프터는 선택사항이에요. (이미지 각 8MB 이하)
         </p>
         <div
-          style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 14 }}
+          style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap", marginTop: 14 }}
         >
           <div className="select-wrap" style={{ width: 150 }}>
             <select value={upCategory} onChange={(e) => setUpCategory(e.target.value)}>
@@ -94,13 +98,29 @@ export default function DeskGalleryPage() {
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </div>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setUpFile(e.target.files?.[0] ?? null)}
-            style={{ fontSize: 13.5, fontFamily: "var(--font-sans)" }}
-          />
-          <Button size="sm" disabled={!upFile || uploading} onClick={upload}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+              비포 (필수)
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setBeforeFile(e.target.files?.[0] ?? null)}
+              style={{ fontSize: 13, fontFamily: "var(--font-sans)" }}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+              애프터 (선택)
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setAfterFile(e.target.files?.[0] ?? null)}
+              style={{ fontSize: 13, fontFamily: "var(--font-sans)" }}
+            />
+          </div>
+          <Button size="sm" disabled={!beforeFile || uploading} onClick={upload}>
             {uploading ? "업로드 중…" : "업로드"}
           </Button>
         </div>
@@ -145,8 +165,9 @@ export default function DeskGalleryPage() {
                     display: "block",
                   }}
                 />
-                <span style={{ position: "absolute", top: 8, left: 8 }}>
+                <span style={{ position: "absolute", top: 8, left: 8, display: "flex", gap: 4 }}>
                   <Badge tone="brand">{g.category}</Badge>
+                  {g.after_image_url && <Badge tone="accent">B/A</Badge>}
                 </span>
                 <button
                   aria-label="삭제"

@@ -780,6 +780,41 @@ button { font-family: inherit; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .form-grid .span-2 { grid-column: 1 / -1; }
 
+/* ---------- 갤러리 비포/애프터 카드 ---------- */
+.ba-card { position: relative; }
+.ba-card.has-after { cursor: pointer; }
+.ba-after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+.ba-card:hover .ba-after,
+.ba-card.is-after .ba-after { opacity: 1; }
+.ba-chip {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 2;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklab, var(--mocha-900) 60%, transparent);
+  color: var(--paper);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+.ba-chip-after { display: none; }
+.ba-card:hover .ba-chip-before,
+.ba-card.is-after .ba-chip-before { display: none; }
+.ba-card:hover .ba-chip-after,
+.ba-card.is-after .ba-chip-after { display: inline; }
+
 /* ---------- Quick menu (플로팅 상담 버튼) ---------- */
 .quick-menu {
   position: fixed;

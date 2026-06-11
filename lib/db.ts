@@ -50,15 +50,22 @@ export interface GalleryItem {
   id: string;
   created_at: string;
   category: string;
-  image_url: string;
+  image_url: string; // 비포(기본) 이미지
   storage_path: string | null;
+  after_image_url: string | null; // 애프터 이미지 — 있으면 호버 시 전환
+  after_storage_path: string | null;
+}
+
+export interface FilePayload {
+  fileName: string;
+  contentType: string;
+  data: ArrayBuffer;
 }
 
 export interface AddGalleryInput {
   category: string;
-  fileName: string;
-  contentType: string;
-  data: ArrayBuffer;
+  before: FilePayload;
+  after?: FilePayload;
 }
 
 export interface Database {
@@ -80,7 +87,7 @@ export interface Database {
   deleteGalleryImage(id: string): Promise<boolean>;
   /** 사이트 고정 이미지 (홈/시술 카드) — key → 커스텀 URL */
   getSiteImages(): Promise<Record<string, string>>;
-  setSiteImage(key: string, input: Omit<AddGalleryInput, "category">): Promise<string>;
+  setSiteImage(key: string, input: FilePayload): Promise<string>;
   deleteSiteImage(key: string): Promise<boolean>;
 }
 
@@ -239,23 +246,44 @@ class SupabaseDb implements Database {
     return (data ?? []).map(normalizeGalleryRow);
   }
 
-  async addGalleryImage(input: AddGalleryInput): Promise<GalleryItem> {
-    const ext = (input.fileName.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const path = `${crypto.randomUUID()}.${ext || "jpg"}`;
-    const { error: upErr } = await this.client.storage
+  private async uploadToStorage(file: FilePayload, prefix = ""): Promise<{ url: string; path: string }> {
+    const ext = (file.fileName.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = `${prefix}${crypto.randomUUID()}.${ext || "jpg"}`;
+    const { error } = await this.client.storage
       .from("gallery")
-      .upload(path, input.data, { contentType: input.contentType });
-    if (upErr) throw new Error(`addGalleryImage(storage): ${upErr.message}`);
-
+      .upload(path, file.data, { contentType: file.contentType });
+    if (error) throw new Error(`storage upload: ${error.message}`);
     const { data: pub } = this.client.storage.from("gallery").getPublicUrl(path);
+    return { url: pub.publicUrl, path };
+  }
+
+  async addGalleryImage(input: AddGalleryInput): Promise<GalleryItem> {
+    const before = await this.uploadToStorage(input.before);
+    let after: { url: string; path: string } | null = null;
+    if (input.after) {
+      try {
+        after = await this.uploadToStorage(input.after);
+      } catch (e) {
+        await this.client.storage.from("gallery").remove([before.path]);
+        throw e;
+      }
+    }
+
     const { data, error } = await this.client
       .from("gallery_items")
-      .insert({ category: input.category, image_url: pub.publicUrl, storage_path: path })
+      .insert({
+        category: input.category,
+        image_url: before.url,
+        storage_path: before.path,
+        after_image_url: after?.url ?? null,
+        after_storage_path: after?.path ?? null,
+      })
       .select()
       .single();
     if (error) {
       // 행 삽입 실패 시 고아 파일 정리
-      await this.client.storage.from("gallery").remove([path]);
+      const orphans = [before.path, ...(after ? [after.path] : [])];
+      await this.client.storage.from("gallery").remove(orphans);
       throw new Error(`addGalleryImage: ${error.message}`);
     }
     return normalizeGalleryRow(data);
@@ -270,8 +298,9 @@ class SupabaseDb implements Database {
       .maybeSingle();
     if (error) throw new Error(`deleteGalleryImage: ${error.message}`);
     if (!data) return false;
-    if (data.storage_path) {
-      await this.client.storage.from("gallery").remove([String(data.storage_path)]);
+    const paths = [data.storage_path, data.after_storage_path].filter(Boolean).map(String);
+    if (paths.length) {
+      await this.client.storage.from("gallery").remove(paths);
     }
     return true;
   }
@@ -284,7 +313,7 @@ class SupabaseDb implements Database {
     return map;
   }
 
-  async setSiteImage(key: string, input: Omit<AddGalleryInput, "category">): Promise<string> {
+  async setSiteImage(key: string, input: FilePayload): Promise<string> {
     // 기존 커스텀 이미지의 스토리지 경로 (교체 후 삭제)
     const { data: prev } = await this.client
       .from("site_images")
@@ -292,25 +321,18 @@ class SupabaseDb implements Database {
       .eq("key", key)
       .maybeSingle();
 
-    const ext = (input.fileName.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const path = `site/${key.replace(/[^a-zA-Z0-9가-힣]/g, "_")}-${crypto.randomUUID()}.${ext || "jpg"}`;
-    const { error: upErr } = await this.client.storage
-      .from("gallery")
-      .upload(path, input.data, { contentType: input.contentType });
-    if (upErr) throw new Error(`setSiteImage(storage): ${upErr.message}`);
-
-    const { data: pub } = this.client.storage.from("gallery").getPublicUrl(path);
+    const uploaded = await this.uploadToStorage(input, "site/");
     const { error } = await this.client
       .from("site_images")
-      .upsert({ key, image_url: pub.publicUrl, storage_path: path }, { onConflict: "key" });
+      .upsert({ key, image_url: uploaded.url, storage_path: uploaded.path }, { onConflict: "key" });
     if (error) {
-      await this.client.storage.from("gallery").remove([path]);
+      await this.client.storage.from("gallery").remove([uploaded.path]);
       throw new Error(`setSiteImage: ${error.message}`);
     }
     if (prev?.storage_path) {
       await this.client.storage.from("gallery").remove([String(prev.storage_path)]);
     }
-    return pub.publicUrl;
+    return uploaded.url;
   }
 
   async deleteSiteImage(key: string): Promise<boolean> {
@@ -336,6 +358,8 @@ function normalizeGalleryRow(row: Record<string, unknown>): GalleryItem {
     category: String(row.category),
     image_url: String(row.image_url),
     storage_path: row.storage_path == null ? null : String(row.storage_path),
+    after_image_url: row.after_image_url == null ? null : String(row.after_image_url),
+    after_storage_path: row.after_storage_path == null ? null : String(row.after_storage_path),
   };
 }
 
@@ -480,8 +504,10 @@ class MemoryDb implements Database {
       id: `mem-g${memStore().seq++}`,
       created_at: new Date().toISOString(),
       category: input.category,
-      image_url: toDataUrl(input.contentType, input.data),
+      image_url: toDataUrl(input.before.contentType, input.before.data),
       storage_path: null,
+      after_image_url: input.after ? toDataUrl(input.after.contentType, input.after.data) : null,
+      after_storage_path: null,
     };
     memStore().gallery.push(item);
     return item;
@@ -498,7 +524,7 @@ class MemoryDb implements Database {
     return { ...memStore().siteImages };
   }
 
-  async setSiteImage(key: string, input: Omit<AddGalleryInput, "category">): Promise<string> {
+  async setSiteImage(key: string, input: FilePayload): Promise<string> {
     const url = toDataUrl(input.contentType, input.data);
     memStore().siteImages[key] = url;
     return url;

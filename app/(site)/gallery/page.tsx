@@ -9,17 +9,49 @@ import type { GalleryItem } from "@/lib/db";
 
 const TABS = ["전체", "자연눈썹", "콤보눈썹", "수지눈썹", "입술"];
 
-// 데스크에서 올린 사진이 없을 때 보여줄 기본(더미) 이미지
-const FALLBACK: [string, string][] = [
-  ["자연눈썹", "/photos/natural.jpg"],
-  ["콤보눈썹", "/photos/combo.jpg"],
-  ["수지눈썹", "/photos/suji.jpg"],
-  ["입술", "/photos/lips.jpg"],
-  ["자연눈썹", "/photos/hero.jpg"],
-  ["콤보눈썹", "/photos/gallery2.jpg"],
-  ["수지눈썹", "/photos/gallery1.jpg"],
-  ["자연눈썹", "/photos/retouch.jpg"],
+// 데스크에서 올린 사진이 없을 때 보여줄 기본(더미) 비포/애프터 쌍
+const FALLBACK: { category: string; before: string; after: string }[] = [
+  { category: "자연눈썹", before: "/photos/hero.jpg", after: "/photos/natural.jpg" },
+  { category: "콤보눈썹", before: "/photos/gallery2.jpg", after: "/photos/combo.jpg" },
+  { category: "수지눈썹", before: "/photos/gallery1.jpg", after: "/photos/suji.jpg" },
+  { category: "입술", before: "/photos/spot.jpg", after: "/photos/lips.jpg" },
 ];
+
+/** 비포/애프터 카드 — 호버(데스크톱)·탭(모바일) 시 애프터로 부드럽게 전환 */
+function BACard({
+  category,
+  before,
+  after,
+}: {
+  category: string;
+  before: string;
+  after?: string | null;
+}) {
+  const [showAfter, setShowAfter] = useState(false);
+  const hasAfter = !!after;
+  return (
+    <div
+      className={`ba-card${hasAfter ? " has-after" : ""}${showAfter ? " is-after" : ""}`}
+      onClick={() => hasAfter && setShowAfter((v) => !v)}
+    >
+      <Photo ratio="5 / 6" src={before} alt={`${category} 시술 전`} radius="var(--radius-lg)" />
+      {hasAfter && (
+        <div className="ba-after">
+          <Photo ratio="5 / 6" src={after!} alt={`${category} 시술 후`} radius="var(--radius-lg)" />
+        </div>
+      )}
+      <div style={{ position: "absolute", top: 12, left: 12, zIndex: 2 }}>
+        <Badge tone="brand">{category}</Badge>
+      </div>
+      {hasAfter && (
+        <span className="ba-chip">
+          <span className="ba-chip-before">BEFORE</span>
+          <span className="ba-chip-after">AFTER</span>
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function GalleryPage() {
   const [filter, setFilter] = useState("전체");
@@ -46,7 +78,7 @@ export default function GalleryPage() {
     ? items.filter((i) => filter === "전체" || i.category === filter)
     : [];
   const shownFallback = !useUploads
-    ? FALLBACK.filter((i) => filter === "전체" || i[0] === filter)
+    ? FALLBACK.filter((i) => filter === "전체" || i.category === filter)
     : [];
 
   return (
@@ -63,7 +95,7 @@ export default function GalleryPage() {
               color: "var(--text-secondary)",
             }}
           >
-            실제 시술 사진입니다. 모든 사진은 고객 동의 후 게시되었습니다.
+            실제 시술 사진입니다. 사진 위에 마우스를 올리면 시술 후 모습을 볼 수 있어요.
           </p>
         </div>
 
@@ -94,62 +126,36 @@ export default function GalleryPage() {
         )}
 
         {useUploads && (
-          <div className="grid-4" style={{ marginTop: 36 }}>
-            {shownUploads.map((it) => (
-              <div key={it.id} style={{ position: "relative" }}>
-                <Photo ratio="5 / 6" src={it.image_url} alt={`${it.category} 시술 사진`} radius="var(--radius-lg)" />
-                <div style={{ position: "absolute", top: 12, left: 12 }}>
-                  <Badge tone="brand">{it.category}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {useUploads && shownUploads.length === 0 && (
-          <p style={{ textAlign: "center", marginTop: 48, fontSize: 14, color: "var(--text-muted)" }}>
-            이 분류의 사진이 아직 없어요.
-          </p>
+          <>
+            <div className="grid-4" style={{ marginTop: 36 }}>
+              {shownUploads.map((it) => (
+                <BACard
+                  key={it.id}
+                  category={it.category}
+                  before={it.image_url}
+                  after={it.after_image_url}
+                />
+              ))}
+            </div>
+            {shownUploads.length === 0 && (
+              <p
+                style={{ textAlign: "center", marginTop: 48, fontSize: 14, color: "var(--text-muted)" }}
+              >
+                이 분류의 사진이 아직 없어요.
+              </p>
+            )}
+          </>
         )}
 
         {items !== null && !useUploads && (
           <div className="grid-4" style={{ marginTop: 36 }}>
             {shownFallback.map((it, i) => (
-              <div key={`${it[0]}-${i}`} style={{ position: "relative" }}>
-                <Photo ratio="5 / 6" src={it[1]} alt={`${it[0]} 시술 전후`} radius="var(--radius-lg)" />
-                <div style={{ position: "absolute", top: 12, left: 12 }}>
-                  <Badge tone="brand">{it[0]}</Badge>
-                </div>
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex" }}>
-                  <span
-                    style={{
-                      flex: 1,
-                      textAlign: "center",
-                      padding: "6px 0",
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "var(--paper)",
-                      background: "color-mix(in oklab, var(--mocha-900) 55%, transparent)",
-                      borderRadius: "0 0 0 var(--radius-lg)",
-                    }}
-                  >
-                    BEFORE
-                  </span>
-                  <span
-                    style={{
-                      flex: 1,
-                      textAlign: "center",
-                      padding: "6px 0",
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "var(--paper)",
-                      background: "color-mix(in oklab, var(--mocha-700) 55%, transparent)",
-                      borderRadius: "0 0 var(--radius-lg) 0",
-                    }}
-                  >
-                    AFTER
-                  </span>
-                </div>
-              </div>
+              <BACard
+                key={`${it.category}-${i}`}
+                category={it.category}
+                before={it.before}
+                after={it.after}
+              />
             ))}
           </div>
         )}

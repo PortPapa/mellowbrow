@@ -46,13 +46,18 @@ create table if not exists blocked_slots (
   unique(date, time_slot)
 );
 
--- 갤러리 (데스크에서 업로드하는 시술 사진)
+-- 갤러리 (데스크에서 업로드하는 시술 사진 — 비포/애프터)
+-- ⚠️ 기존 테이블에 애프터 컬럼만 추가하려면:
+--    alter table gallery_items add column if not exists after_image_url text;
+--    alter table gallery_items add column if not exists after_storage_path text;
 create table if not exists gallery_items (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   category text not null,               -- 자연눈썹 | 콤보눈썹 | 수지눈썹 | 입술 | 기타
-  image_url text not null,              -- Storage 공개 URL
-  storage_path text                     -- Storage 객체 경로 (삭제용)
+  image_url text not null,              -- 비포 이미지 (Storage 공개 URL)
+  storage_path text,                    -- Storage 객체 경로 (삭제용)
+  after_image_url text,                 -- 애프터 이미지 — 있으면 호버 시 전환
+  after_storage_path text
 );
 
 -- 사이트 고정 이미지 (홈 히어로/스튜디오, 시술 카드 — 데스크에서 교체)
