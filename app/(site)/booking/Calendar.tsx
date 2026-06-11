@@ -122,15 +122,6 @@ export function Calendar({
                 onClick={() => onSelect(d.date)}
               >
                 <span className="cal-day">{Number(d.date.slice(8))}</span>
-                {selectable && (
-                  <span className="cal-dots">
-                    {Array.from({ length: d.available }).map((_, i) => (
-                      <i key={i} />
-                    ))}
-                  </span>
-                )}
-                {isFull && <span className="cal-full">마감</span>}
-                {isClosed && <span className="cal-closed">휴무</span>}
               </button>
             );
           })}
@@ -141,17 +132,6 @@ export function Calendar({
         </p>
       )}
 
-      <div className="cal-legend">
-        <span>
-          <i className="dot" /> 남은 시간대 수
-        </span>
-        <span>
-          <b style={{ color: "var(--blush-700)", fontWeight: 600, fontSize: 11 }}>마감</b> 예약 불가
-        </span>
-        <span>
-          <b style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>휴무</b> 매주 월요일
-        </span>
-      </div>
     </div>
   );
 }

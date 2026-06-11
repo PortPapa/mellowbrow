@@ -542,17 +542,15 @@ button { font-family: inherit; }
 .cal-cell {
   position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-height: 62px;
+  min-height: 52px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
   font-family: var(--font-sans);
-  padding: 6px 0;
+  padding: 0;
   transition: all var(--dur-fast) var(--ease-out);
 }
 .cal-day { font-size: 15px; font-weight: 500; color: var(--text-primary); line-height: 1; }
@@ -560,30 +558,18 @@ button { font-family: inherit; }
 .cal-cell.is-today { border-color: var(--border-strong); }
 .cal-cell.is-selected { background: var(--primary); }
 .cal-cell.is-selected .cal-day { color: var(--on-primary); }
-.cal-cell.is-selected .cal-dots i { background: var(--paper); }
 .cal-cell:disabled { cursor: default; }
+/* 마감·휴무·범위 밖 날짜는 숫자만 흐리게 */
 .cal-cell.is-out .cal-day,
-.cal-cell.is-full .cal-day { color: var(--text-placeholder); }
-.cal-dots { display: flex; gap: 2.5px; height: 4px; }
-.cal-dots i { width: 4px; height: 4px; border-radius: 999px; background: var(--mocha-400); }
-.cal-full { font-size: 9.5px; font-weight: 600; color: var(--blush-700); letter-spacing: 0.04em; line-height: 1; }
-.cal-closed { font-size: 9.5px; font-weight: 600; color: var(--text-placeholder); letter-spacing: 0.04em; line-height: 1; }
-.cal-legend {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  margin-top: 12px;
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-.cal-legend .dot {
-  display: inline-block;
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--mocha-400);
-  margin-right: 4px;
-  vertical-align: middle;
+.cal-cell.is-full .cal-day { color: var(--text-placeholder); opacity: 0.55; }
+
+@media (max-width: 480px) {
+  .cal { padding: 14px; }
+  .cal-grid { gap: 3px; }
+  .cal-cell { min-height: 42px; }
+  .cal-day { font-size: 13px; }
+  .cal-head { margin-bottom: 12px; }
+  .cal-title { font-size: 15.5px; }
 }
 
 /* ---------- Filter pills (gallery) ---------- */
