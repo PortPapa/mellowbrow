@@ -68,7 +68,17 @@ npm run dev
 4. **Settings > Variables and Secrets**에 환경변수 등록:
    - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Secret)
    - `ADMIN_PASSWORD`, `AUTH_SECRET` (Secret)
+   - (선택) `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (Secret) — 텔레그램 예약 알림
 5. 이후 `main` 브랜치에 푸시할 때마다 자동 배포
+
+## 텔레그램 예약 알림 (선택)
+
+새 예약이 들어올 때 사장님 텔레그램으로 알림을 받습니다. 설정 안 하면 알림만 생략되고 예약은 정상 동작합니다.
+
+1. 텔레그램에서 **@BotFather** 검색 → `/newbot` → 봇 이름·아이디 정하면 **봇 토큰** 발급 (`123456789:ABC...`)
+2. 방금 만든 봇과 대화방을 열고 아무 메시지나 한 번 보냄
+3. **@userinfobot** 에게 말을 걸면 내 **chat id**(숫자)를 알려줌
+4. Cloudflare Secret으로 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` 등록 → 재배포
 
 로컬에서 직접 배포하려면: `npm run deploy` (wrangler 로그인 필요)
 

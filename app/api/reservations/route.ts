@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, spansOverlap } from "@/lib/db";
+import { notifyNewReservation } from "@/lib/notify";
 import { getService, SERVICE_NAMES } from "@/lib/catalog";
 import { SLOT_VALUES, isBookableDate, isClosedDay, isSlotInPast, slotHour } from "@/lib/slots";
 
@@ -77,6 +78,8 @@ export async function POST(req: NextRequest) {
         { status: 409 },
       );
     }
+    // 텔레그램 알림 (미설정 시 건너뜀, 실패해도 예약에 영향 없음)
+    await notifyNewReservation(result.reservation);
     return NextResponse.json({ reservation: result.reservation }, { status: 201 });
   } catch (e) {
     console.error("[reservations:create]", e);
