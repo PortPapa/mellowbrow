@@ -8,8 +8,10 @@ import { resolveSiteImage } from "@/lib/site-images";
 import { getSiteImageMap } from "@/lib/site-images-server";
 
 export const metadata: Metadata = {
-  title: "시술 안내",
-  description: "멜로우브로우의 시술 메뉴와 가격 안내. 모든 시술은 1:1 맞춤 상담 후 진행됩니다.",
+  title: "시술 안내 — 천호 눈썹문신 가격",
+  description:
+    "천호역 눈썹문신 멜로우브로우 시술 메뉴와 가격 — 자연눈썹 12만, 콤보눈썹 15만, 수지눈썹 17만 (현금가). 아이라인·입술 틴트립·SMP까지 1:1 맞춤 상담 후 진행합니다.",
+  alternates: { canonical: "/services" },
 };
 
 // 데스크에서 교체한 사이트 이미지를 매 요청 반영
@@ -38,10 +40,23 @@ const FAQ = [
   },
 ];
 
+// FAQ 리치 결과용 구조화 데이터 (아래 FAQ 아코디언과 동일 내용)
+const FAQ_JSONLD = () =>
+  JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  });
+
 export default async function ServicesPage() {
   const siteImages = await getSiteImageMap();
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: FAQ_JSONLD() }} />
       <Section>
         <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto" }}>
           <span className="mb-eyebrow">Service & Pricing</span>

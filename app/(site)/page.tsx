@@ -287,7 +287,8 @@ export default async function HomePage() {
               marginRight: "auto",
             }}
           >
-            100% 예약제로 운영됩니다. 원하시는 날짜와 시술을 남겨주시면 빠르게 안내드릴게요.
+            천호역 도보 5분, 강동구의 눈썹문신 아틀리에. 100% 예약제로 운영되며 원하시는
+            날짜와 시술을 남겨주시면 빠르게 안내드릴게요.
           </p>
           <div style={{ marginTop: 30 }}>
             <Button size="lg" href="/booking">

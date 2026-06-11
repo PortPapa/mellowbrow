@@ -2,6 +2,7 @@
 export const DESK_PATH = "/desk";
 
 export const SITE_NAME = "mellowbrow";
+export const SITE_URL = "https://mellowbrow.com";
 export const INSTAGRAM_URL = "https://www.instagram.com/mellowbrow/";
 export const KAKAO_OPENCHAT_URL = "https://open.kakao.com/o/s4qPh5ef";
 
