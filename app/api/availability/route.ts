@@ -47,10 +47,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ date, closed: false, slots });
   } catch (e) {
     console.error("[availability]", e);
-    return NextResponse.json(
-      { error: "잠시 후 다시 시도해 주세요.", detail: e instanceof Error ? e.message : String(e) },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "잠시 후 다시 시도해 주세요." }, { status: 500 });
   }
 }
 
@@ -87,9 +84,6 @@ async function monthAvailability(month: string) {
     return NextResponse.json({ month, days });
   } catch (e) {
     console.error("[availability:month]", e);
-    return NextResponse.json(
-      { error: "잠시 후 다시 시도해 주세요.", detail: e instanceof Error ? e.message : String(e) },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "잠시 후 다시 시도해 주세요." }, { status: 500 });
   }
 }
