@@ -212,7 +212,8 @@ export default function DeskPage() {
             완료
           </Button>
         )}
-        {(r.status === "pending" || r.status === "confirmed") && (
+        {/* 완료 포함 — 완료된 기록도 취소 → 삭제 경로로 지울 수 있게 */}
+        {r.status !== "cancelled" && (
           <Button size="sm" variant="secondary" onClick={() => changeStatus(r.id, "cancelled")}>
             취소
           </Button>
