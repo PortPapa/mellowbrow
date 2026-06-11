@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { KAKAO_OPENCHAT_URL } from "@/lib/constants";
 import { CATALOG, durationLabel, getService } from "@/lib/catalog";
+import { formatPhone } from "@/lib/format";
 import { SLOT_HOURS, slotHour, slotLabel } from "@/lib/slots";
 import { Calendar } from "./Calendar";
 
@@ -57,22 +58,6 @@ const INFO: [typeof Clock, string, string][] = [
   [CalendarCheck, "예약제", "100% 예약제 운영\n방문 전 꼭 예약해 주세요"],
   [Instagram, "문의", "@mellowbrow DM\n카카오톡 ID mellow415"],
 ];
-
-/** 입력값을 한국 전화번호 형식으로 자동 하이픈 (예: 01026291808 → 010-2629-1808) */
-function formatPhone(raw: string): string {
-  const d = raw.replace(/\D/g, "").slice(0, 11);
-  // 서울 지역번호 02
-  if (d.startsWith("02")) {
-    const rest = d.slice(2);
-    if (d.length <= 2) return d;
-    if (rest.length <= 4) return `02-${rest}`;
-    return `02-${rest.slice(0, rest.length - 4)}-${rest.slice(rest.length - 4)}`;
-  }
-  // 휴대전화/그 외 (010 등): 3-4-4
-  if (d.length <= 3) return d;
-  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
-  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
-}
 
 /** '2026-06-12' → '6월 12일 (금)' */
 function formatDateKo(dateStr: string): string {

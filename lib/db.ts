@@ -1,7 +1,7 @@
 // 데이터 접근 계층 — Supabase 구현 + (환경변수 미설정 시) 로컬 데모용 in-memory fallback.
 // Supabase 접근은 항상 서버에서만 일어난다 (service-role 키, 클라이언트 노출 금지).
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { slotHour } from "@/lib/slots";
+import { SLOT_VALUES, addDays, isClosedDay, slotHour } from "@/lib/slots";
 
 export type ReservationStatus = "pending" | "confirmed" | "done" | "cancelled";
 
@@ -18,6 +18,9 @@ export interface Reservation {
   has_residue: boolean; // 기존 반영구 잔흔 여부 — true면 사진 상담 필요
   status: ReservationStatus;
 }
+
+/** 데스크 API 응답용 — returning은 DB 컬럼이 아니라 서버에서 계산해 붙이는 주석 필드 */
+export type ReservationWithMeta = Reservation & { returning?: boolean };
 
 /** 활성 예약의 점유 구간 */
 export interface Span {
@@ -44,6 +47,7 @@ export interface ListFilter {
   date?: string;
   status?: ReservationStatus;
   fromDate?: string;
+  name?: string;
 }
 
 export interface GalleryItem {
@@ -80,7 +84,11 @@ export interface Database {
   createReservation(input: CreateReservationInput): Promise<CreateResult>;
   listReservations(filter: ListFilter): Promise<Reservation[]>;
   updateReservationStatus(id: string, status: ReservationStatus): Promise<Reservation | null>;
+  /** 예약 영구 삭제 — 취소(cancelled) 상태인 건만 삭제 (가드 내장). 삭제됐으면 true */
+  deleteReservation(id: string): Promise<boolean>;
   setBlocked(date: string, slot: string, blocked: boolean): Promise<void>;
+  /** 기간 전체 차단/해제 — 차단 시 정기 휴무일(월)은 건너뜀, 해제는 기간 내 차단 전부 제거 */
+  setBlockedRange(from: string, to: string, blocked: boolean): Promise<void>;
   /** 갤러리 — 최신순 */
   listGallery(): Promise<GalleryItem[]>;
   addGalleryImage(input: AddGalleryInput): Promise<GalleryItem>;
@@ -202,6 +210,7 @@ class SupabaseDb implements Database {
     if (filter.date) q = q.eq("date", filter.date);
     if (filter.status) q = q.eq("status", filter.status);
     if (filter.fromDate) q = q.gte("date", filter.fromDate);
+    if (filter.name) q = q.eq("name", filter.name);
     const { data, error } = await q
       .order("date", { ascending: true })
       .order("time_slot", { ascending: true });
@@ -220,6 +229,19 @@ class SupabaseDb implements Database {
     return data ? normalizeRow(data) : null;
   }
 
+  async deleteReservation(id: string): Promise<boolean> {
+    // status 조건을 쿼리에 포함 — 취소되지 않은 예약은 절대 지워지지 않음
+    const { data, error } = await this.client
+      .from("reservations")
+      .delete()
+      .eq("id", id)
+      .eq("status", "cancelled")
+      .select()
+      .maybeSingle();
+    if (error) throw new Error(`deleteReservation: ${error.message}`);
+    return Boolean(data);
+  }
+
   async setBlocked(date: string, slot: string, blocked: boolean): Promise<void> {
     if (blocked) {
       const { error } = await this.client
@@ -233,6 +255,28 @@ class SupabaseDb implements Database {
         .eq("date", date)
         .eq("time_slot", slot);
       if (error) throw new Error(`setBlocked: ${error.message}`);
+    }
+  }
+
+  async setBlockedRange(from: string, to: string, blocked: boolean): Promise<void> {
+    if (blocked) {
+      const rows: { date: string; time_slot: string }[] = [];
+      for (let d = from; d <= to; d = addDays(d, 1)) {
+        if (isClosedDay(d)) continue; // 월요일은 자동 휴무 — 행 불필요
+        for (const slot of SLOT_VALUES) rows.push({ date: d, time_slot: slot });
+      }
+      if (rows.length === 0) return;
+      const { error } = await this.client
+        .from("blocked_slots")
+        .upsert(rows, { onConflict: "date,time_slot", ignoreDuplicates: true });
+      if (error) throw new Error(`setBlockedRange: ${error.message}`);
+    } else {
+      const { error } = await this.client
+        .from("blocked_slots")
+        .delete()
+        .gte("date", from)
+        .lte("date", to);
+      if (error) throw new Error(`setBlockedRange: ${error.message}`);
     }
   }
 
@@ -476,7 +520,8 @@ class MemoryDb implements Database {
         (r) =>
           (!filter.date || r.date === filter.date) &&
           (!filter.status || r.status === filter.status) &&
-          (!filter.fromDate || r.date >= filter.fromDate),
+          (!filter.fromDate || r.date >= filter.fromDate) &&
+          (!filter.name || r.name === filter.name),
       )
       .sort((a, b) => (a.date + a.time_slot).localeCompare(b.date + b.time_slot));
   }
@@ -488,10 +533,29 @@ class MemoryDb implements Database {
     return r;
   }
 
+  async deleteReservation(id: string): Promise<boolean> {
+    const store = memStore();
+    const idx = store.reservations.findIndex((r) => r.id === id && r.status === "cancelled");
+    if (idx === -1) return false;
+    store.reservations.splice(idx, 1);
+    return true;
+  }
+
   async setBlocked(date: string, slot: string, blocked: boolean): Promise<void> {
     const store = memStore();
     store.blocks = store.blocks.filter((b) => !(b.date === date && b.time_slot === slot));
     if (blocked) store.blocks.push({ date, time_slot: slot });
+  }
+
+  async setBlockedRange(from: string, to: string, blocked: boolean): Promise<void> {
+    const store = memStore();
+    store.blocks = store.blocks.filter((b) => b.date < from || b.date > to);
+    if (blocked) {
+      for (let d = from; d <= to; d = addDays(d, 1)) {
+        if (isClosedDay(d)) continue;
+        for (const slot of SLOT_VALUES) store.blocks.push({ date: d, time_slot: slot });
+      }
+    }
   }
 
   async listGallery(): Promise<GalleryItem[]> {

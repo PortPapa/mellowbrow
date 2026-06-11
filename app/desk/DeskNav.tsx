@@ -11,6 +11,7 @@ const TABS = [
   { href: DESK_PATH, label: "예약" },
   { href: `${DESK_PATH}/gallery`, label: "갤러리" },
   { href: `${DESK_PATH}/images`, label: "사이트 이미지" },
+  { href: `${DESK_PATH}/stats`, label: "기록·통계" },
 ];
 
 export function DeskNav() {

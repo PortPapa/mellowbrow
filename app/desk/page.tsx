@@ -8,8 +8,8 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { DESK_PATH } from "@/lib/constants";
 import { durationLabel } from "@/lib/catalog";
-import { SLOT_HOURS, addDays, hourLabel, isClosedDay, slotHour, slotLabel, todayKST } from "@/lib/slots";
-import type { Reservation, ReservationStatus } from "@/lib/db";
+import { SLOT_HOURS, SLOT_VALUES, addDays, hourLabel, isClosedDay, slotHour, slotLabel, todayKST } from "@/lib/slots";
+import type { ReservationStatus, ReservationWithMeta } from "@/lib/db";
 
 const STATUS_LABEL: Record<ReservationStatus, string> = {
   pending: "대기",
@@ -42,10 +42,15 @@ export default function DeskPage() {
   const today = todayKST();
   const tomorrow = addDays(today, 1);
   const [selected, setSelected] = useState(today);
-  const [upcoming, setUpcoming] = useState<Reservation[]>([]);
+  const [upcoming, setUpcoming] = useState<ReservationWithMeta[]>([]);
   const [blockedMap, setBlockedMap] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // 기간 휴무 (여행·휴가) 입력
+  const [rangeFrom, setRangeFrom] = useState(today);
+  const [rangeTo, setRangeTo] = useState(today);
+  const [rangeBusy, setRangeBusy] = useState(false);
+  const [rangeMsg, setRangeMsg] = useState("");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -61,7 +66,7 @@ export default function DeskPage() {
         return;
       }
       if (!rRes.ok || !bRes.ok) throw new Error();
-      setUpcoming(((await rRes.json()) as { reservations: Reservation[] }).reservations);
+      setUpcoming(((await rRes.json()) as { reservations: ReservationWithMeta[] }).reservations);
       setBlockedMap(((await bRes.json()) as { blocked: Record<string, string[]> }).blocked);
     } catch {
       setError("데이터를 불러오지 못했어요. 새로고침 해주세요.");
@@ -135,8 +140,46 @@ export default function DeskPage() {
     } else setError("휴무 설정에 실패했어요.");
   }
 
+  /** 기간(또는 단일 날짜) 일괄 차단/해제 — 성공 시 전체 새로고침 */
+  async function setRange(from: string, to: string, nextBlocked: boolean) {
+    setRangeBusy(true);
+    setRangeMsg("");
+    try {
+      const res = await fetch(`/api${DESK_PATH}/blocks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to, blocked: nextBlocked }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error);
+      setRangeMsg(
+        from === to
+          ? `${shortDate(from)} ${nextBlocked ? "차단 완료" : "차단 해제 완료"}`
+          : `${shortDate(from)} ~ ${shortDate(to)} ${nextBlocked ? "차단 완료" : "차단 해제 완료"}`,
+      );
+      await loadAll();
+    } catch (e) {
+      setRangeMsg(e instanceof Error && e.message ? e.message : "휴무 설정에 실패했어요.");
+    } finally {
+      setRangeBusy(false);
+    }
+  }
+
+  /** 취소된 예약 기록 영구 삭제 */
+  async function removeReservation(id: string) {
+    if (!window.confirm("이 예약 기록을 완전히 삭제할까요? 되돌릴 수 없어요.")) return;
+    const res = await fetch(`/api${DESK_PATH}/reservations?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    if (res.ok) void loadAll();
+    else {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      setError(data.error ?? "삭제에 실패했어요.");
+    }
+  }
+
   // 선택 날짜의 시간별 점유 맵
-  const occupancy = new Map<number, { r: Reservation; isStart: boolean }>();
+  const occupancy = new Map<number, { r: ReservationWithMeta; isStart: boolean }>();
   for (const r of activeOf(selected)) {
     const start = slotHour(r.time_slot);
     for (let h = start; h < start + r.duration_hours; h++) {
@@ -145,10 +188,18 @@ export default function DeskPage() {
   }
   const boardHours: number[] = [...SLOT_HOURS, ...[21, 22, 23].filter((h) => occupancy.has(h))];
   const blocked = blockedMap[selected] ?? [];
+  const allBlocked = SLOT_VALUES.every((s) => blocked.includes(s));
+  // 기간 휴무 경고용 — 기간 내 활성 예약 수 (차단해도 자동 취소되지 않음)
+  const rangeAffected = upcoming.filter(
+    (r) =>
+      r.date >= rangeFrom &&
+      r.date <= rangeTo &&
+      (r.status === "pending" || r.status === "confirmed"),
+  ).length;
 
   const stripDates = Array.from({ length: STRIP_DAYS }, (_, i) => addDays(today, i));
 
-  function StatusActions({ r }: { r: Reservation }) {
+  function StatusActions({ r }: { r: ReservationWithMeta }) {
     return (
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {r.status === "pending" && (
@@ -171,11 +222,16 @@ export default function DeskPage() {
             복구
           </Button>
         )}
+        {r.status === "cancelled" && (
+          <Button size="sm" variant="ghost" onClick={() => void removeReservation(r.id)}>
+            삭제
+          </Button>
+        )}
       </div>
     );
   }
 
-  function ReservationRow({ r, showDate }: { r: Reservation; showDate?: boolean }) {
+  function ReservationRow({ r, showDate }: { r: ReservationWithMeta; showDate?: boolean }) {
     return (
       <div
         style={{
@@ -192,6 +248,7 @@ export default function DeskPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
             {r.has_residue && <Badge tone="accent">잔흔</Badge>}
+            {r.returning && <Badge tone="neutral">재방문</Badge>}
             <b style={{ fontSize: 15 }}>{r.name}</b>
             <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
               {showDate && `${shortDate(r.date)} (${weekdayOf(r.date)}) · `}
@@ -319,13 +376,25 @@ export default function DeskPage() {
             <CalendarDays size={18} strokeWidth={1.75} />
             {shortDate(selected)} ({weekdayOf(selected)}) 시간표
           </h3>
-          <div style={{ width: 180 }}>
-            <Input
-              type="date"
-              min={today}
-              value={selected}
-              onChange={(e) => e.target.value && setSelected(e.target.value)}
-            />
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {!isClosedDay(selected) && (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={rangeBusy}
+                onClick={() => void setRange(selected, selected, !allBlocked)}
+              >
+                {allBlocked ? "이 날 차단 해제" : "이 날 전체 차단"}
+              </Button>
+            )}
+            <div style={{ width: 180 }}>
+              <Input
+                type="date"
+                min={today}
+                value={selected}
+                onChange={(e) => e.target.value && setSelected(e.target.value)}
+              />
+            </div>
           </div>
         </div>
         {isClosedDay(selected) ? (
@@ -367,6 +436,7 @@ export default function DeskPage() {
                             {STATUS_LABEL[entry.r.status]}
                           </Badge>{" "}
                           {entry.r.has_residue && <Badge tone="accent">잔흔</Badge>}{" "}
+                          {entry.r.returning && <Badge tone="neutral">재방문</Badge>}{" "}
                           {entry.r.name} · {entry.r.service} · {durationLabel(entry.r.duration_hours)}
                         </span>
                       ) : (
@@ -394,6 +464,62 @@ export default function DeskPage() {
             })}
           </div>
         )}
+
+        {/* 기간 휴무 (여행·휴가) */}
+        <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--border-soft)" }}>
+          <b style={{ fontSize: 14.5 }}>기간 휴무 (여행·휴가)</b>
+          <p style={{ marginTop: 6, fontSize: 13, color: "var(--text-muted)" }}>
+            기간 안의 모든 시간이 한 번에 차단돼요. 월요일은 정기 휴무라 자동으로 건너뜁니다.
+          </p>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+            <div style={{ width: 160 }}>
+              <Input
+                type="date"
+                min={today}
+                value={rangeFrom}
+                onChange={(e) => e.target.value && setRangeFrom(e.target.value)}
+              />
+            </div>
+            <span style={{ color: "var(--text-muted)" }}>~</span>
+            <div style={{ width: 160 }}>
+              <Input
+                type="date"
+                min={rangeFrom}
+                value={rangeTo}
+                onChange={(e) => e.target.value && setRangeTo(e.target.value)}
+              />
+            </div>
+            <Button
+              size="sm"
+              disabled={rangeBusy || rangeFrom > rangeTo}
+              onClick={() => void setRange(rangeFrom, rangeTo, true)}
+            >
+              기간 차단
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={rangeBusy || rangeFrom > rangeTo}
+              onClick={() => void setRange(rangeFrom, rangeTo, false)}
+            >
+              차단 해제
+            </Button>
+          </div>
+          {rangeFrom > rangeTo && (
+            <p style={{ marginTop: 10, fontSize: 13, color: "var(--error)" }}>
+              시작일이 종료일보다 늦어요.
+            </p>
+          )}
+          {rangeAffected > 0 && (
+            <p style={{ marginTop: 10, fontSize: 13, color: "var(--blush-700)" }}>
+              이 기간에 예약 {rangeAffected}건이 있어요 — 차단해도 자동 취소되지 않으니 별도로
+              취소·연락해 주세요.
+            </p>
+          )}
+          {rangeMsg && (
+            <p style={{ marginTop: 10, fontSize: 13, color: "var(--text-secondary)" }}>{rangeMsg}</p>
+          )}
+        </div>
       </Card>
 
       {/* 선택 날짜 예약 목록 */}

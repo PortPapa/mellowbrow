@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Section } from "@/components/site/Section";
 import { BookingForm } from "./BookingForm";
 
@@ -18,6 +19,18 @@ export default async function BookingPage({
   return (
     <Section>
       <BookingForm initialService={service ?? ""} />
+      <p style={{ textAlign: "center", marginTop: 36, fontSize: 14 }}>
+        <Link
+          href="/booking/manage"
+          style={{
+            color: "var(--text-secondary)",
+            textDecoration: "underline",
+            textUnderlineOffset: 4,
+          }}
+        >
+          이미 예약하셨나요? 예약 조회·취소 →
+        </Link>
+      </p>
     </Section>
   );
 }
