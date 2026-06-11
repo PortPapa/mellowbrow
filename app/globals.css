@@ -807,12 +807,20 @@ button { font-family: inherit; }
 .quick-menu {
   position: fixed;
   right: 18px;
-  bottom: 22px;
+  /* iOS 홈 인디케이터 등 세이프에어리어 반영 */
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
   z-index: 80;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
+}
+/* 모바일: 브라우저 하단 툴바에 가리지 않게 더 위로 */
+@media (max-width: 768px) {
+  .quick-menu {
+    right: 14px;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
 }
 .quick-kakao {
   width: 54px;
