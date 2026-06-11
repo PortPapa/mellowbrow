@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DeskNav } from "./DeskNav";
 
 export const metadata: Metadata = {
   title: "데스크",
@@ -6,5 +7,10 @@ export const metadata: Metadata = {
 };
 
 export default function DeskLayout({ children }: { children: React.ReactNode }) {
-  return <div style={{ minHeight: "100vh", background: "var(--surface-sunken)" }}>{children}</div>;
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--surface-sunken)" }}>
+      <DeskNav />
+      {children}
+    </div>
+  );
 }

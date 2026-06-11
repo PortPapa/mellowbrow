@@ -4,7 +4,25 @@ import { getDb } from "@/lib/db";
 import { SLOT_VALUES, isValidDateStr } from "@/lib/slots";
 
 export async function GET(req: NextRequest) {
-  const date = req.nextUrl.searchParams.get("date") ?? "";
+  const sp = req.nextUrl.searchParams;
+  const from = sp.get("from");
+  const to = sp.get("to");
+
+  // 범위 모드 — { blocked: { 'YYYY-MM-DD': ['11:00', ...] } }
+  if (from && to) {
+    if (!isValidDateStr(from) || !isValidDateStr(to) || from > to) {
+      return NextResponse.json({ error: "올바른 기간이 아니에요." }, { status: 400 });
+    }
+    try {
+      const blocked = await getDb().blockedSlotsInRange(from, to);
+      return NextResponse.json({ from, to, blocked });
+    } catch (e) {
+      console.error("[desk:blocks:range]", e);
+      return NextResponse.json({ error: "휴무 정보를 불러오지 못했어요." }, { status: 500 });
+    }
+  }
+
+  const date = sp.get("date") ?? "";
   if (!isValidDateStr(date)) {
     return NextResponse.json({ error: "올바른 날짜가 아니에요." }, { status: 400 });
   }

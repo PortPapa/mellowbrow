@@ -1,18 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { CalendarDays, ImagePlus, Images, LogOut, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarDays, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { Logo } from "@/components/ui/Logo";
-import { DESK_PATH, GALLERY_CATEGORIES } from "@/lib/constants";
-import { SITE_IMAGE_SLOTS, resolveSiteImage } from "@/lib/site-images";
-import type { GalleryItem } from "@/lib/db";
-import { SLOT_HOURS, hourLabel, slotHour, slotLabel, todayKST } from "@/lib/slots";
+import { DESK_PATH } from "@/lib/constants";
 import { durationLabel } from "@/lib/catalog";
+import { SLOT_HOURS, addDays, hourLabel, isClosedDay, slotHour, slotLabel, todayKST } from "@/lib/slots";
 import type { Reservation, ReservationStatus } from "@/lib/db";
 
 const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -29,136 +25,44 @@ const STATUS_TONE: Record<ReservationStatus, "neutral" | "brand" | "accent" | "s
   cancelled: "error",
 };
 
+const STRIP_DAYS = 14;
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function weekdayOf(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+}
+
+function shortDate(dateStr: string): string {
+  const [, m, d] = dateStr.split("-").map(Number);
+  return `${m}/${d}`;
+}
+
 export default function DeskPage() {
-  const router = useRouter();
   const today = todayKST();
-  const [date, setDate] = useState(today);
-  const [dayReservations, setDayReservations] = useState<Reservation[]>([]);
-  const [blocked, setBlocked] = useState<string[]>([]);
-  const [pending, setPending] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(false);
+  const tomorrow = addDays(today, 1);
+  const [selected, setSelected] = useState(today);
+  const [upcoming, setUpcoming] = useState<Reservation[]>([]);
+  const [blockedMap, setBlockedMap] = useState<Record<string, string[]>>({});
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 갤러리 관리
-  const [gallery, setGallery] = useState<GalleryItem[]>([]);
-  const [upFile, setUpFile] = useState<File | null>(null);
-  const [upCategory, setUpCategory] = useState<string>(GALLERY_CATEGORIES[0]);
-  const [uploading, setUploading] = useState(false);
-  const [galleryError, setGalleryError] = useState("");
-
-  const loadGallery = useCallback(async () => {
-    try {
-      const res = await fetch("/api/gallery");
-      if (!res.ok) throw new Error();
-      setGallery(((await res.json()) as { items: GalleryItem[] }).items);
-    } catch {
-      setGalleryError("갤러리를 불러오지 못했어요.");
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadGallery();
-  }, [loadGallery]);
-
-  async function uploadGallery() {
-    if (!upFile || uploading) return;
-    setUploading(true);
-    setGalleryError("");
-    try {
-      const form = new FormData();
-      form.append("file", upFile);
-      form.append("category", upCategory);
-      const res = await fetch(`/api${DESK_PATH}/gallery`, { method: "POST", body: form });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setGalleryError(body.error ?? "업로드에 실패했어요.");
-        return;
-      }
-      setUpFile(null);
-      void loadGallery();
-    } catch {
-      setGalleryError("네트워크 오류가 발생했어요.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function deleteGallery(id: string) {
-    const res = await fetch(`/api${DESK_PATH}/gallery?id=${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
-    if (res.ok) void loadGallery();
-    else setGalleryError("삭제에 실패했어요.");
-  }
-
-  // 사이트 이미지 (홈/시술 카드)
-  const [siteImages, setSiteImages] = useState<Record<string, string>>({});
-  const [siteBusy, setSiteBusy] = useState<string | null>(null);
-  const [siteError, setSiteError] = useState("");
-
-  const loadSiteImages = useCallback(async () => {
-    try {
-      const res = await fetch("/api/site-images");
-      if (!res.ok) throw new Error();
-      setSiteImages(((await res.json()) as { images: Record<string, string> }).images);
-    } catch {
-      setSiteError("사이트 이미지를 불러오지 못했어요.");
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadSiteImages();
-  }, [loadSiteImages]);
-
-  async function changeSiteImage(key: string, file: File) {
-    setSiteBusy(key);
-    setSiteError("");
-    try {
-      const form = new FormData();
-      form.append("key", key);
-      form.append("file", file);
-      const res = await fetch(`/api${DESK_PATH}/site-images`, { method: "POST", body: form });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setSiteError(body.error ?? "업로드에 실패했어요.");
-        return;
-      }
-      void loadSiteImages();
-    } catch {
-      setSiteError("네트워크 오류가 발생했어요.");
-    } finally {
-      setSiteBusy(null);
-    }
-  }
-
-  async function resetSiteImage(key: string) {
-    setSiteBusy(key);
-    setSiteError("");
-    const res = await fetch(`/api${DESK_PATH}/site-images?key=${encodeURIComponent(key)}`, {
-      method: "DELETE",
-    });
-    setSiteBusy(null);
-    if (res.ok) void loadSiteImages();
-    else setSiteError("기본값 복원에 실패했어요.");
-  }
-
-  const load = useCallback(async (d: string) => {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [rRes, bRes, pRes] = await Promise.all([
-        fetch(`/api${DESK_PATH}/reservations?date=${d}`),
-        fetch(`/api${DESK_PATH}/blocks?date=${d}`),
-        fetch(`/api${DESK_PATH}/reservations?status=pending&from=${todayKST()}`),
+      const t = todayKST();
+      const [rRes, bRes] = await Promise.all([
+        fetch(`/api${DESK_PATH}/reservations?from=${t}`),
+        fetch(`/api${DESK_PATH}/blocks?from=${t}&to=${addDays(t, STRIP_DAYS - 1)}`),
       ]);
       if (rRes.status === 401 || bRes.status === 401) {
         window.location.href = `${DESK_PATH}/login`;
         return;
       }
-      if (!rRes.ok || !bRes.ok || !pRes.ok) throw new Error();
-      setDayReservations(((await rRes.json()) as { reservations: Reservation[] }).reservations);
-      setBlocked(((await bRes.json()) as { blocked: string[] }).blocked);
-      setPending(((await pRes.json()) as { reservations: Reservation[] }).reservations);
+      if (!rRes.ok || !bRes.ok) throw new Error();
+      setUpcoming(((await rRes.json()) as { reservations: Reservation[] }).reservations);
+      setBlockedMap(((await bRes.json()) as { blocked: Record<string, string[]> }).blocked);
     } catch {
       setError("데이터를 불러오지 못했어요. 새로고침 해주세요.");
     } finally {
@@ -167,8 +71,43 @@ export default function DeskPage() {
   }, []);
 
   useEffect(() => {
-    void load(date);
-  }, [date, load]);
+    void loadAll();
+  }, [loadAll]);
+
+  // 스트립 범위(+14일) 밖 날짜를 고르면 그 날짜의 차단 정보만 추가 조회
+  useEffect(() => {
+    if (selected > addDays(today, STRIP_DAYS - 1) && !(selected in blockedMap)) {
+      void (async () => {
+        const res = await fetch(`/api${DESK_PATH}/blocks?date=${selected}`);
+        if (res.ok) {
+          const data = (await res.json()) as { blocked: string[] };
+          setBlockedMap((m) => ({ ...m, [selected]: data.blocked }));
+        }
+      })();
+    }
+  }, [selected, blockedMap, today]);
+
+  /** 해당 날짜의 활성(대기·확정) 예약 — 시작 시간순 */
+  const activeOf = useCallback(
+    (date: string) =>
+      upcoming
+        .filter((r) => r.date === date && (r.status === "pending" || r.status === "confirmed"))
+        .sort((a, b) => slotHour(a.time_slot) - slotHour(b.time_slot)),
+    [upcoming],
+  );
+
+  const pendingAll = useMemo(() => upcoming.filter((r) => r.status === "pending"), [upcoming]);
+  const dayAll = useMemo(() => upcoming.filter((r) => r.date === selected), [upcoming, selected]);
+
+  function daySummary(date: string): string {
+    if (isClosedDay(date)) return "정기 휴무";
+    const list = activeOf(date);
+    if (list.length === 0) return "예약 없음";
+    const first = slotLabel(list[0].time_slot);
+    const lastR = list[list.length - 1];
+    const last = slotLabel(lastR.time_slot);
+    return list.length === 1 ? `${first}` : `${first} ~ ${last}`;
+  }
 
   async function changeStatus(id: string, status: ReservationStatus) {
     const res = await fetch(`/api${DESK_PATH}/reservations`, {
@@ -176,7 +115,7 @@ export default function DeskPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
     });
-    if (res.ok) void load(date);
+    if (res.ok) void loadAll();
     else setError("상태 변경에 실패했어요.");
   }
 
@@ -184,31 +123,30 @@ export default function DeskPage() {
     const res = await fetch(`/api${DESK_PATH}/blocks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, time_slot: slot, blocked: nextBlocked }),
+      body: JSON.stringify({ date: selected, time_slot: slot, blocked: nextBlocked }),
     });
-    if (res.ok) void load(date);
-    else setError("휴무 설정에 실패했어요.");
+    if (res.ok) {
+      setBlockedMap((m) => {
+        const cur = new Set(m[selected] ?? []);
+        if (nextBlocked) cur.add(slot);
+        else cur.delete(slot);
+        return { ...m, [selected]: [...cur] };
+      });
+    } else setError("휴무 설정에 실패했어요.");
   }
 
-  async function logout() {
-    await fetch(`/api${DESK_PATH}/login`, { method: "DELETE" });
-    router.replace(`${DESK_PATH}/login`);
-  }
-
-  // 시간별 점유 맵 — 예약(start, duration)이 [start, start+D) 시간을 차지
+  // 선택 날짜의 시간별 점유 맵
   const occupancy = new Map<number, { r: Reservation; isStart: boolean }>();
-  for (const r of dayReservations) {
-    if (r.status === "cancelled") continue;
+  for (const r of activeOf(selected)) {
     const start = slotHour(r.time_slot);
     for (let h = start; h < start + r.duration_hours; h++) {
       occupancy.set(h, { r, isStart: h === start });
     }
   }
-  // 21시 이후는 점유(스필오버)가 있을 때만 표시
-  const boardHours: number[] = [
-    ...SLOT_HOURS,
-    ...[21, 22, 23].filter((h) => occupancy.has(h)),
-  ];
+  const boardHours: number[] = [...SLOT_HOURS, ...[21, 22, 23].filter((h) => occupancy.has(h))];
+  const blocked = blockedMap[selected] ?? [];
+
+  const stripDates = Array.from({ length: STRIP_DAYS }, (_, i) => addDays(today, i));
 
   function StatusActions({ r }: { r: Reservation }) {
     return (
@@ -255,7 +193,7 @@ export default function DeskPage() {
             <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
             <b style={{ fontSize: 15 }}>{r.name}</b>
             <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
-              {showDate && `${r.date} · `}
+              {showDate && `${shortDate(r.date)} (${weekdayOf(r.date)}) · `}
               {slotLabel(r.time_slot)} · {r.service} · {durationLabel(r.duration_hours)}
             </span>
           </div>
@@ -270,29 +208,21 @@ export default function DeskPage() {
   }
 
   return (
-    <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px var(--gutter) 80px" }}>
+    <div className="desk-container">
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 28,
+          marginBottom: 20,
           gap: 12,
           flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Logo variant="full" size={22} />
-          <span className="mb-eyebrow">Desk</span>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Button size="sm" variant="secondary" onClick={() => void load(date)}>
-            <RefreshCw size={14} strokeWidth={2} /> 새로고침
-          </Button>
-          <Button size="sm" variant="ghost" onClick={logout}>
-            <LogOut size={14} strokeWidth={2} /> 로그아웃
-          </Button>
-        </div>
+        <h2 style={{ fontSize: 24 }}>예약 현황</h2>
+        <Button size="sm" variant="secondary" onClick={() => void loadAll()}>
+          <RefreshCw size={14} strokeWidth={2} /> 새로고침
+        </Button>
       </div>
 
       {error && (
@@ -310,7 +240,69 @@ export default function DeskPage() {
         </p>
       )}
 
-      {/* 날짜 선택 + 슬롯 보드 */}
+      {/* 요약 카드 */}
+      <div className="desk-summary" style={{ marginBottom: 20 }}>
+        <Card elevation="sm">
+          <span className="mb-eyebrow">오늘 ({weekdayOf(today)})</span>
+          <div className="desk-summary-num" style={{ marginTop: 8 }}>
+            {isClosedDay(today) ? "휴무" : `${activeOf(today).length}건`}
+          </div>
+          <div style={{ marginTop: 6, fontSize: 13, color: "var(--text-muted)" }}>
+            {daySummary(today)}
+          </div>
+        </Card>
+        <Card elevation="sm">
+          <span className="mb-eyebrow">내일 ({weekdayOf(tomorrow)})</span>
+          <div className="desk-summary-num" style={{ marginTop: 8 }}>
+            {isClosedDay(tomorrow) ? "휴무" : `${activeOf(tomorrow).length}건`}
+          </div>
+          <div style={{ marginTop: 6, fontSize: 13, color: "var(--text-muted)" }}>
+            {daySummary(tomorrow)}
+          </div>
+        </Card>
+        <Card elevation="sm">
+          <span className="mb-eyebrow">확인 필요 (대기)</span>
+          <div
+            className="desk-summary-num"
+            style={{ marginTop: 8, color: pendingAll.length > 0 ? "var(--blush-700)" : undefined }}
+          >
+            {pendingAll.length}건
+          </div>
+          <div style={{ marginTop: 6, fontSize: 13, color: "var(--text-muted)" }}>
+            {pendingAll.length > 0 ? "아래 목록에서 확정해 주세요" : "모두 처리됐어요"}
+          </div>
+        </Card>
+      </div>
+
+      {/* 2주 스케줄 스트립 */}
+      <div className="desk-strip" style={{ marginBottom: 24 }}>
+        {stripDates.map((d) => {
+          const closed = isClosedDay(d);
+          const list = activeOf(d);
+          const isToday = d === today;
+          const cls = [
+            "desk-day",
+            d === selected ? "is-selected" : "",
+            isToday ? "is-today" : "",
+            closed ? "is-closed" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          return (
+            <button key={d} type="button" className={cls} onClick={() => !closed && setSelected(d)}>
+              <div className="desk-day-label">
+                {isToday ? "오늘" : d === tomorrow ? "내일" : `${shortDate(d)} (${weekdayOf(d)})`}
+              </div>
+              <div className="desk-day-count">{closed ? "휴무" : `${list.length}건`}</div>
+              <div className="desk-day-sub">
+                {closed ? "" : list.length > 0 ? `${slotLabel(list[0].time_slot)}부터` : "비어 있음"}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 날짜 선택 + 시간 보드 */}
       <Card elevation="sm" style={{ marginBottom: 24 }}>
         <div
           style={{
@@ -323,326 +315,112 @@ export default function DeskPage() {
           }}
         >
           <h3 style={{ fontSize: 19, display: "flex", alignItems: "center", gap: 8 }}>
-            <CalendarDays size={18} strokeWidth={1.75} /> 날짜별 슬롯
+            <CalendarDays size={18} strokeWidth={1.75} />
+            {shortDate(selected)} ({weekdayOf(selected)}) 시간표
           </h3>
           <div style={{ width: 180 }}>
-            <Input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
+            <Input
+              type="date"
+              min={today}
+              value={selected}
+              onChange={(e) => e.target.value && setSelected(e.target.value)}
+            />
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {boardHours.map((h) => {
-            const slotValue = `${h}:00`;
-            const entry = occupancy.get(h);
-            const isBlocked = blocked.includes(slotValue);
-            return (
-              <div
-                key={h}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  padding: "10px 14px",
-                  borderRadius: "var(--radius-md)",
-                  background: entry
-                    ? "var(--primary-soft)"
-                    : isBlocked
-                      ? "var(--surface-fill)"
-                      : "var(--surface-page)",
-                  border: "1px solid var(--border-soft)",
-                  flexWrap: "wrap",
-                  opacity: entry && !entry.isStart ? 0.75 : 1,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <b style={{ fontSize: 14, minWidth: 76 }}>{hourLabel(h)}</b>
-                  {entry ? (
-                    entry.isStart ? (
-                      <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
-                        <Badge tone={STATUS_TONE[entry.r.status]}>
-                          {STATUS_LABEL[entry.r.status]}
-                        </Badge>{" "}
-                        {entry.r.name} · {entry.r.service} ·{" "}
-                        {durationLabel(entry.r.duration_hours)}
-                      </span>
+        {isClosedDay(selected) ? (
+          <p style={{ fontSize: 14, color: "var(--text-muted)", padding: "8px 0" }}>
+            월요일은 정기 휴무예요.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {boardHours.map((h) => {
+              const slotValue = `${h}:00`;
+              const entry = occupancy.get(h);
+              const isBlocked = blocked.includes(slotValue);
+              return (
+                <div
+                  key={h}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    padding: "10px 14px",
+                    borderRadius: "var(--radius-md)",
+                    background: entry
+                      ? "var(--primary-soft)"
+                      : isBlocked
+                        ? "var(--surface-fill)"
+                        : "var(--surface-page)",
+                    border: "1px solid var(--border-soft)",
+                    flexWrap: "wrap",
+                    opacity: entry && !entry.isStart ? 0.75 : 1,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <b style={{ fontSize: 14, minWidth: 76 }}>{hourLabel(h)}</b>
+                    {entry ? (
+                      entry.isStart ? (
+                        <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
+                          <Badge tone={STATUS_TONE[entry.r.status]}>
+                            {STATUS_LABEL[entry.r.status]}
+                          </Badge>{" "}
+                          {entry.r.name} · {entry.r.service} · {durationLabel(entry.r.duration_hours)}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                          ↳ {entry.r.name}님 시술 진행 중
+                        </span>
+                      )
+                    ) : isBlocked ? (
+                      <span style={{ fontSize: 13, color: "var(--text-muted)" }}>휴무 (차단됨)</span>
                     ) : (
-                      <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                        ↳ {entry.r.name}님 시술 진행 중
-                      </span>
-                    )
-                  ) : isBlocked ? (
-                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>휴무 (차단됨)</span>
-                  ) : (
-                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>비어 있음</span>
+                      <span style={{ fontSize: 13, color: "var(--text-muted)" }}>비어 있음</span>
+                    )}
+                  </div>
+                  {!entry && h <= 20 && (
+                    <Button
+                      size="sm"
+                      variant={isBlocked ? "secondary" : "quiet"}
+                      onClick={() => toggleBlock(slotValue, !isBlocked)}
+                    >
+                      {isBlocked ? "차단 해제" : "차단"}
+                    </Button>
                   )}
                 </div>
-                {!entry && h <= 20 && (
-                  <Button
-                    size="sm"
-                    variant={isBlocked ? "secondary" : "quiet"}
-                    onClick={() => toggleBlock(slotValue, !isBlocked)}
-                  >
-                    {isBlocked ? "차단 해제" : "차단"}
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
-      {/* 해당 날짜 예약 목록 */}
+      {/* 선택 날짜 예약 목록 */}
       <Card elevation="sm" style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 19, marginBottom: 6 }}>{date} 예약</h3>
+        <h3 style={{ fontSize: 19, marginBottom: 6 }}>
+          {shortDate(selected)} ({weekdayOf(selected)}) 예약
+        </h3>
         {loading && <p style={{ fontSize: 13.5, color: "var(--text-muted)" }}>불러오는 중…</p>}
-        {!loading && dayReservations.length === 0 && (
+        {!loading && dayAll.length === 0 && (
           <p style={{ fontSize: 13.5, color: "var(--text-muted)", padding: "10px 0" }}>
             이 날짜에는 예약이 없어요.
           </p>
         )}
-        {dayReservations.map((r) => (
+        {dayAll.map((r) => (
           <ReservationRow key={r.id} r={r} />
         ))}
       </Card>
 
-      {/* 다가오는 대기 예약 */}
-      <Card elevation="sm" style={{ marginBottom: 24 }}>
+      {/* 대기 전체 */}
+      <Card elevation="sm">
         <h3 style={{ fontSize: 19, marginBottom: 6 }}>확인이 필요한 신청 (대기)</h3>
-        {!loading && pending.length === 0 && (
+        {!loading && pendingAll.length === 0 && (
           <p style={{ fontSize: 13.5, color: "var(--text-muted)", padding: "10px 0" }}>
             대기 중인 신청이 없어요.
           </p>
         )}
-        {pending.map((r) => (
+        {pendingAll.map((r) => (
           <ReservationRow key={r.id} r={r} showDate />
         ))}
-      </Card>
-
-      {/* 갤러리 관리 */}
-      <Card elevation="sm">
-        <h3 style={{ fontSize: 19, display: "flex", alignItems: "center", gap: 8 }}>
-          <ImagePlus size={18} strokeWidth={1.75} /> 갤러리 관리
-        </h3>
-        <p style={{ marginTop: 6, fontSize: 13, color: "var(--text-muted)" }}>
-          시술 사진을 올리면 홈페이지 갤러리에 바로 표시돼요. (이미지 8MB 이하)
-        </p>
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-            flexWrap: "wrap",
-            marginTop: 14,
-          }}
-        >
-          <div className="select-wrap" style={{ width: 150 }}>
-            <select value={upCategory} onChange={(e) => setUpCategory(e.target.value)}>
-              {GALLERY_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <svg
-              className="select-chevron"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setUpFile(e.target.files?.[0] ?? null)}
-            style={{ fontSize: 13.5, fontFamily: "var(--font-sans)" }}
-          />
-          <Button size="sm" disabled={!upFile || uploading} onClick={uploadGallery}>
-            {uploading ? "업로드 중…" : "업로드"}
-          </Button>
-        </div>
-        {galleryError && (
-          <p
-            style={{
-              fontSize: 13.5,
-              color: "var(--error)",
-              background: "var(--error-soft)",
-              padding: "10px 14px",
-              borderRadius: "var(--radius-md)",
-              marginTop: 12,
-            }}
-          >
-            {galleryError}
-          </p>
-        )}
-        {gallery.length === 0 ? (
-          <p style={{ fontSize: 13.5, color: "var(--text-muted)", padding: "14px 0 4px" }}>
-            아직 올린 사진이 없어요. 사진이 없으면 갤러리에 기본 이미지가 표시돼요.
-          </p>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-              gap: 12,
-              marginTop: 18,
-            }}
-          >
-            {gallery.map((g) => (
-              <div key={g.id} style={{ position: "relative" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={g.image_url}
-                  alt={g.category}
-                  style={{
-                    width: "100%",
-                    aspectRatio: "1 / 1",
-                    objectFit: "cover",
-                    borderRadius: "var(--radius-md)",
-                    display: "block",
-                  }}
-                />
-                <span style={{ position: "absolute", top: 8, left: 8 }}>
-                  <Badge tone="brand">{g.category}</Badge>
-                </span>
-                <button
-                  aria-label="삭제"
-                  onClick={() => deleteGallery(g.id)}
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    width: 28,
-                    height: 28,
-                    borderRadius: "999px",
-                    border: "none",
-                    background: "rgba(46,38,32,0.65)",
-                    color: "var(--paper)",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  <Trash2 size={14} strokeWidth={2} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* 사이트 이미지 (홈/시술 카드) */}
-      <Card elevation="sm" style={{ marginTop: 24 }}>
-        <h3 style={{ fontSize: 19, display: "flex", alignItems: "center", gap: 8 }}>
-          <Images size={18} strokeWidth={1.75} /> 사이트 이미지
-        </h3>
-        <p style={{ marginTop: 6, fontSize: 13, color: "var(--text-muted)" }}>
-          홈 화면과 시술 카드에 쓰이는 사진이에요. &lsquo;변경&rsquo;으로 교체하고, 언제든
-          기본값으로 되돌릴 수 있어요.
-        </p>
-        {siteError && (
-          <p
-            style={{
-              fontSize: 13.5,
-              color: "var(--error)",
-              background: "var(--error-soft)",
-              padding: "10px 14px",
-              borderRadius: "var(--radius-md)",
-              marginTop: 12,
-            }}
-          >
-            {siteError}
-          </p>
-        )}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            gap: 14,
-            marginTop: 18,
-          }}
-        >
-          {SITE_IMAGE_SLOTS.map((slot) => {
-            const isCustom = !!siteImages[slot.key];
-            const busy = siteBusy === slot.key;
-            return (
-              <div
-                key={slot.key}
-                style={{
-                  border: "1px solid var(--border-soft)",
-                  borderRadius: "var(--radius-md)",
-                  overflow: "hidden",
-                  background: "var(--surface-page)",
-                }}
-              >
-                <div style={{ position: "relative" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={resolveSiteImage(siteImages, slot.key)}
-                    alt={slot.label}
-                    style={{
-                      width: "100%",
-                      aspectRatio: "4 / 3",
-                      objectFit: "cover",
-                      display: "block",
-                      opacity: busy ? 0.5 : 1,
-                    }}
-                  />
-                  {isCustom && (
-                    <span style={{ position: "absolute", top: 8, left: 8 }}>
-                      <Badge tone="brand">교체됨</Badge>
-                    </span>
-                  )}
-                </div>
-                <div
-                  style={{
-                    padding: "10px 12px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)" }}>
-                    {slot.label}
-                  </span>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <label className="btn btn-secondary btn-sm" style={{ cursor: "pointer" }}>
-                      {busy ? "처리 중…" : "변경"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        disabled={busy}
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) void changeSiteImage(slot.key, f);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                    {isCustom && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => resetSiteImage(slot.key)}
-                      >
-                        <RotateCcw size={13} strokeWidth={2} /> 기본값
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </Card>
     </div>
   );
