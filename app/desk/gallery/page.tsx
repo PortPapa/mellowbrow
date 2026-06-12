@@ -5,6 +5,7 @@ import { ImagePlus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ImageDrop } from "@/components/desk/ImageDrop";
 import { DESK_PATH, GALLERY_CATEGORIES } from "@/lib/constants";
 import type { GalleryItem } from "@/lib/db";
 
@@ -73,9 +74,7 @@ export default function DeskGalleryPage() {
           비포·애프터 사진을 함께 올리면 갤러리에서 마우스를 올렸을 때 애프터로 부드럽게
           전환돼요. 애프터는 선택사항이에요. (이미지 각 8MB 이하)
         </p>
-        <div
-          style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap", marginTop: 14 }}
-        >
+        <div style={{ marginTop: 14 }}>
           <div className="select-wrap" style={{ width: 150 }}>
             <select value={upCategory} onChange={(e) => setUpCategory(e.target.value)}>
               {GALLERY_CATEGORIES.map((c) => (
@@ -98,31 +97,15 @@ export default function DeskGalleryPage() {
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
-              비포 (필수)
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setBeforeFile(e.target.files?.[0] ?? null)}
-              style={{ fontSize: 13, fontFamily: "var(--font-sans)" }}
-            />
+          <div className="dropzone-grid">
+            <ImageDrop label="비포" required file={beforeFile} onChange={setBeforeFile} onError={setError} />
+            <ImageDrop label="애프터" file={afterFile} onChange={setAfterFile} onError={setError} />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
-              애프터 (선택)
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setAfterFile(e.target.files?.[0] ?? null)}
-              style={{ fontSize: 13, fontFamily: "var(--font-sans)" }}
-            />
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+            <Button size="sm" disabled={!beforeFile || uploading} onClick={upload}>
+              {uploading ? "업로드 중…" : "업로드"}
+            </Button>
           </div>
-          <Button size="sm" disabled={!beforeFile || uploading} onClick={upload}>
-            {uploading ? "업로드 중…" : "업로드"}
-          </Button>
         </div>
         {error && (
           <p
